@@ -1,3 +1,10 @@
+# Don't sync these - too much data
+samples
+samplesNew
+plots
+
+
+
 # History files
 .Rhistory
 .Rapp.history
