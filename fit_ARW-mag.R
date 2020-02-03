@@ -59,6 +59,11 @@ for(dataName in c('calibration', 'annie-chris', 'calibration-subset')) {
 ### Plots & checks ----------
 samples <- loadSamples(fn, samplesDir)
 
+
+load('./samplesNew/model-arw-RL-mag_data-calibration.RData')
+plot.dmc(samples)
+h.IC.dmc(samples)
+
 plot.dmc(samples, hyper=TRUE, density=TRUE, layout=c(4,4))
 
 # simulate posterior predictives

@@ -1,27 +1,32 @@
 doSample <- function(data, p.prior, pp.prior, fileName, restart=FALSE,
-                     nCores=31, nmcBurn=150, nmc=250, nIter=100) {
-  fileNameFull <- paste0(fileName, '.RData')
-  if(file.exists(fileNameFull)) {
-    load(fileNameFull)
-  }
-  
-  if(restart | !exists('burn1')) {
-    burn <- h.samples.dmc(nmc=nmcBurn, p.prior=p.prior, data=data, pp.prior=pp.prior)
-    # burn1 <- h.run.dmc(burn, cores=nCores, p.migrate=0.05, h.p.migrate = 0.05, report=10)
-    burn1 <- h.run.unstuck.dmc(samples=burn, nmc=nmcBurn, cores=nCores, p.migrate=0.05, h.p.migrate=0.05, end.no.migrate=TRUE)
-    save(burn1, file=fileNameFull)
-  }
-  
-  if(restart | !exists('samples')) {
-    samples <- burn1
-  }
-  
-  # Sample from posterior, starting from the end result of burn1
-  samples <- h.run.converge.dmc(samples=h.samples.dmc(nmc=nmc, samples=samples, add=TRUE),
-                                thorough=TRUE, nmc = nmc, cores=nCores,
-                                save=paste0(fileName, "_autoconverge"))
-  save(burn1, samples, file=fileNameFull)
-  
+                     nCores=31, nmcBurn=150, nmc=250, nIter=100, useRUN=False) {
+  if(useRUN) {
+    samples <- h.samples.dmc(nmc=nmcBurn, p.prior=p.prior, data=data, pp.prior=pp.prior)
+    samples <- h.RUN.dmc(hsamples = samples, cores=nCores, verbose=TRUE, saveFn=fileName)
+    save(samples, save=paste0(saveFn, '.RData'))
+  } else {
+    fileNameFull <- paste0(fileName, '.RData')
+    if(file.exists(fileNameFull)) {
+      load(fileNameFull)
+    }
+    
+    if(restart | !exists('burn1')) {
+      burn <- h.samples.dmc(nmc=nmcBurn, p.prior=p.prior, data=data, pp.prior=pp.prior)
+      # burn1 <- h.run.dmc(burn, cores=nCores, p.migrate=0.05, h.p.migrate = 0.05, report=10)
+      burn1 <- h.run.unstuck.dmc(samples=burn, nmc=nmcBurn, cores=nCores, p.migrate=0.05, h.p.migrate=0.05, end.no.migrate=TRUE)
+      save(burn1, file=fileNameFull)
+    }
+    
+    if(restart | !exists('samples')) {
+      samples <- burn1
+    }
+    
+    # Sample from posterior, starting from the end result of burn1
+    samples <- h.run.converge.dmc(samples=h.samples.dmc(nmc=nmc, samples=samples, add=TRUE),
+                                  thorough=TRUE, nmc = nmc, cores=nCores,
+                                  save=paste0(fileName, "_autoconverge"))
+    save(burn1, samples, file=fileNameFull)
+  }  
 }
 
 loadData <- function(name, subset=FALSE, addBins=FALSE, addStimSets=FALSE) {
@@ -171,9 +176,15 @@ getPriors <- function(p.vector) {
   upper[names(p1)=='t0'] <- 1
   lower[names(p1)=='t0'] <- 0.025
   
-  # learning rate aV
-  p1[names(p1)=='aV'] <- -1.6  # corresponds to 0.05
-  lower[names(p1)=='aV'] <- NA  # corresponds to 0
+  # stimulus or risk representations SR/RR
+  p1[names(p1)=='SR' | names(p1) == 'RR'] = 0
+  p2[names(p1)=='SR' | names(p1) == 'RR'] = 1
+  lower[names(p1)=='SR' | names(p1) == 'RR'] = NA
+  upper[names(p1)=='SR' | names(p1) == 'RR'] = NA
+  
+  # learning rate aV or aR
+  p1[names(p1)=='aV' | names(p1)=='aR'] <- -1.6  # corresponds to 0.05
+  lower[names(p1)=='aV' | names(p1)=='aR'] <- NA  # corresponds to 0
   
   # urgency v0 - may vary across conditions, so use grepl
   p1[grepl(pattern='V0', names(p1))] <- 2
@@ -211,6 +222,16 @@ getPriors <- function(p.vector) {
   # softmax beta
   p1[names(p1) == 'beta'] = 1
   p2[names(p1) == 'beta'] = 1
+  
+  # lba sd_v
+  p1[grepl(pattern='sd_v', x=names(p1))] = 1
+  p2[grepl(pattern='sd_v', x=names(p1))] = 1
+  lower[grepl(pattern='sd_v', x=names(p1))] = 0
+
+  # lba A
+  p1[grepl(pattern='A', x=names(p1))] = 1
+  p2[grepl(pattern='A', x=names(p1))] = 1
+  lower[grepl(pattern='A', x=names(p1))] = 0
   
   # combine everything
   p.prior <- prior.p.dmc(
