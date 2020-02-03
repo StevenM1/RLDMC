@@ -57,6 +57,7 @@ for(dataName in c('calibration', 'annie-chris', 'calibration-subset')) {
 ### Plots & checks ----------
 samples <- loadSamples(fn, samplesDir)
 
+h.IC.dmc(samples)
 
 # load('calibration_ddm_autoconverge.RData')
 # # load('calibration_ddm_old.Rdata'); samples <- burn1

@@ -2,10 +2,10 @@
 rm(list=ls())
 source ("dmc/dmc.R")
 source('utils.R')
-load_model ("RW", "arw-RL.R")
+load_model ("LBA", "alba-RL-mag.R")
 
 # some names for saving
-modelName = 'arw-RL'
+modelName = 'alba-RL-mag'
 samplesDir <- 'samplesNew'
 
 for(dataName in c('calibration', 'annie-chris', 'calibration-subset')) {
@@ -13,18 +13,19 @@ for(dataName in c('calibration', 'annie-chris', 'calibration-subset')) {
   fn = paste0('model-', modelName, '_data-', dataName)
   
   #### Model ----
-  model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1",
+  model <- model.dmc(p.map=list(A="1",t0="1",st0="1",
+                                sd_v="1",
                                 B0="1",
                                 SR="1", aV="1",
-                                V0="1", wV="1"),
+                                V0="1", wV="1", wS='1'),
                      match.map=list(M=list(s1=1, s1=2)),
-                     constants=c(st0=0, s=1,
-                                 SR=-10, A=0),
+                     constants=c(st0=0, sd_v=1,
+                                 SR=-10),
                      factors=list(S=c("s1")), 
                      responses=c("r1","r2"),
                      type="norm")
   
-  p.vector  <- c(t0=.2, aV=-1.6,
+  p.vector  <- c(t0=.2, aV=-1.6, wS=1, A=1,
                  wV=1, B0=1, V0=1.5)
   
   #### Data ----
@@ -52,23 +53,20 @@ for(dataName in c('calibration', 'annie-chris', 'calibration-subset')) {
   p.prior <- pp.prior[[1]]
   
   #### Sample  -----------------------------------------------------------------
-  doSample(data, p.prior, pp.prior, nmcBurn=150, nCores=15, restart=FALSE, fileName=file.path(samplesDir, fn))
+  doSample(data, p.prior, pp.prior, nmcBurn=600, nCores=15, restart=FALSE, 
+           useRUN = TRUE, fileName=file.path(samplesDir, fn))
 }
 
 
 ### Plots & checks ----------
 samples <- loadSamples(fn, samplesDir)
+# load('./samplesNew/model-alba-RL-mag_data-calibration.Rdata')
+# plot.dmc(hsamples)
+# h.IC.dmc(hsamples)
 
 # check if removing any samples is required?
 plot.dmc(samples, hyper=TRUE, density=TRUE, layout=c(4,4))
 # samples <- h.samples.dmc(nmc=0,add=TRUE,samples=samples,remove=1:400)  ## for removing if necessary
-
-# # for pair plot
-# toKeep <- seq(1, samples[[1]]$nmc, 10)
-# toRemove <- 1:samples[[1]]$nmc
-# samples <- h.samples.dmc(nmc=0,add=TRUE,samples=samples,remove=toRemove[-toKeep])
-# plot.dmc(samples, hyper=TRUE, density=TRUE, layout=c(4,4))
-# pairs.dmc(samples)
 
 # simulate posterior predictives
 pp = h.post.predict.dmc(samples = samples, adapt=TRUE,save.simulation = TRUE, cores=15)
@@ -267,14 +265,14 @@ plot(0,0, xlim=c(1,10), ylim=c(0.5, 0.85), xlab='bin', ylab='RT', type='n')
 for(ease in unique(meanRTsByEase[[1]]$ease)) {
   idxD = meanRTsByEase[[1]]$ease == ease
   toPlot <- meanRTsByEase[[1]][idxD,]
-
+  
   offset = 0.8 - toPlot$RT[1]
   toPlot$RT <- toPlot$RT+offset
   lines(toPlot$bin, toPlot$RT, col=i)
   i=i+1
-#  plotDataPPBins(data=meanRTsByEase[[1]][idxD,], pp=meanRTsByEase[[2]][idxM,], draw.legend=FALSE)
-#  plotDataPPBins(data=meanAccByEase[[1]][idxD,], pp=meanAccByEase[[2]][idxM,], dep.var='acc', draw.legend=FALSE)
-#  title(ease)
+  #  plotDataPPBins(data=meanRTsByEase[[1]][idxD,], pp=meanRTsByEase[[2]][idxM,], draw.legend=FALSE)
+  #  plotDataPPBins(data=meanAccByEase[[1]][idxD,], pp=meanAccByEase[[2]][idxM,], dep.var='acc', draw.legend=FALSE)
+  #  title(ease)
   #  plotDataPPBins(data=meanSkewByEase[[1]][idxD,], pp=meanSkewByEase[[2]][idxM,], dep.var='RT', draw.legend=FALSE)
 }
 

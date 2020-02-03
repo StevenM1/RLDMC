@@ -17,7 +17,7 @@ transform.dmc <- function(par.df,do.trans=TRUE)
   
   # if start point is Inf, assume risk is "known" / "correct"
   par.df$RR[par.df$RR == Inf] <- par.df$SR[par.df$RR == Inf]*(1-par.df$SR[par.df$RR == Inf])
-  par.df$RR[par.df$RR == 0] <- 1e-5 # never 0, since sqrt is taken in update.
+  par.df$RR[par.df$RR == 0] <- 1e-10 # never 0, since sqrt is taken in update.
   
   if (do.trans) {
     return(
