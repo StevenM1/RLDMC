@@ -1,3 +1,4 @@
+
 ## load data
 rm(list=ls())
 library(snowfall)
@@ -51,7 +52,7 @@ getDataPpBPIC <- function(modelName, dataName, do.plot=FALSE, BPIConly=FALSE) {
   data <- lapply(samples, function(x) x$data)
   if(do.plot) plot.dmc(samples, hyper=TRUE, density=TRUE, layout=c(4,4))
   if(!BPIConly) {
-    pp = h.post.predict.dmc(samples = samples, adapt=TRUE,save.simulation = TRUE, cores=30)
+    pp = h.post.predict.dmc(samples = samples, adapt=TRUE,save.simulation = TRUE, cores=1)
     ppNoSim <- h.pp.summary(pp, samples=samples)
     
     #### Append stimulus set info to data & model --------
@@ -71,19 +72,19 @@ getDataPpBPIC <- function(modelName, dataName, do.plot=FALSE, BPIConly=FALSE) {
 
 getqRTsByCue <- function(data3, pp3) {
   q10RTsByCue <- list(getDescriptives(data3, dep.var='RT.10.', attr.name='qRTsCorrectByCue', id.var1='~bin*cue', id.var2=NULL),
-                       getDescriptives(pp3, dep.var='RT.10.', attr.name='qRTsCorrectByCue', id.var1='~reps*bin*cue', id.var2=NULL))
+                      getDescriptives(pp3, dep.var='RT.10.', attr.name='qRTsCorrectByCue', id.var1='~reps*bin*cue', id.var2=NULL))
   q50RTsByCue <- list(getDescriptives(data3, dep.var='RT.50.', attr.name='qRTsCorrectByCue', id.var1='~bin*cue', id.var2=NULL),
-                       getDescriptives(pp3, dep.var='RT.50.', attr.name='qRTsCorrectByCue', id.var1='~reps*bin*cue', id.var2=NULL))
+                      getDescriptives(pp3, dep.var='RT.50.', attr.name='qRTsCorrectByCue', id.var1='~reps*bin*cue', id.var2=NULL))
   q90RTsByCue <- list(getDescriptives(data3, dep.var='RT.90.', attr.name='qRTsCorrectByCue', id.var1='~bin*cue', id.var2=NULL),
-                       getDescriptives(pp3, dep.var='RT.90.', attr.name='qRTsCorrectByCue', id.var1='~reps*bin*cue', id.var2=NULL))
+                      getDescriptives(pp3, dep.var='RT.90.', attr.name='qRTsCorrectByCue', id.var1='~reps*bin*cue', id.var2=NULL))
   q10RTsByCueE <- list(getDescriptives(data3, dep.var='RT.10.', attr.name='qRTsErrorByCue', id.var1='~bin*cue', id.var2=NULL),
-                        getDescriptives(pp3, dep.var='RT.10.', attr.name='qRTsErrorByCue', id.var1='~reps*bin*cue', id.var2=NULL))
+                       getDescriptives(pp3, dep.var='RT.10.', attr.name='qRTsErrorByCue', id.var1='~reps*bin*cue', id.var2=NULL))
   q50RTsByCueE <- list(getDescriptives(data3, dep.var='RT.50.', attr.name='qRTsErrorByCue', id.var1='~bin*cue', id.var2=NULL),
-                        getDescriptives(pp3, dep.var='RT.50.', attr.name='qRTsErrorByCue', id.var1='~reps*bin*cue', id.var2=NULL))
+                       getDescriptives(pp3, dep.var='RT.50.', attr.name='qRTsErrorByCue', id.var1='~reps*bin*cue', id.var2=NULL))
   q90RTsByCueE <- list(getDescriptives(data3, dep.var='RT.90.', attr.name='qRTsErrorByCue', id.var1='~bin*cue', id.var2=NULL),
-                        getDescriptives(pp3, dep.var='RT.90.', attr.name='qRTsErrorByCue', id.var1='~reps*bin*cue', id.var2=NULL))
+                       getDescriptives(pp3, dep.var='RT.90.', attr.name='qRTsErrorByCue', id.var1='~reps*bin*cue', id.var2=NULL))
   meanAccByCue <- list(getDescriptives(data3, dep.var='acc', attr.name='AccByCue', id.var1='~bin*cue', id.var2=NULL),
-                        getDescriptives(pp3, dep.var='acc', attr.name='AccByCue', id.var1='~reps*bin*cue', id.var2=NULL))
+                       getDescriptives(pp3, dep.var='acc', attr.name='AccByCue', id.var1='~reps*bin*cue', id.var2=NULL))
   return(list('q10RTsByCue'=q10RTsByCue,
               'q50RTsByCue'=q50RTsByCue,
               'q90RTsByCue'=q90RTsByCue,
@@ -96,45 +97,14 @@ getqRTsByCue <- function(data3, pp3) {
 
 
 # Which is the winning model? -----------------------------------------------
-BPICDDMa <- getDataPpBPIC('ddm-RL-SAT-a', 'exp3', BPIConly=TRUE)$BPIC
-BPICDDMm <- getDataPpBPIC('ddm-RL-SAT-m', 'exp3', BPIConly=TRUE)$BPIC
-BPICDDMam <- getDataPpBPIC('ddm-RL-SAT-am', 'exp3', BPIConly=TRUE)$BPIC
-BPICARD1 <- getDataPpBPIC('arw-RL-mag-SAT-B2', 'exp3', BPIConly=TRUE)$BPIC
-BPICARD2 <- getDataPpBPIC('arw-RL-mag-SAT-W2', 'exp3', BPIConly=TRUE)$BPIC
-BPICARD3 <- getDataPpBPIC('arw-RL-mag-SAT-V02', 'exp3', BPIConly=TRUE)$BPIC
-BPICARD4 <- getDataPpBPIC('arw-RL-mag-SAT-BW2', 'exp3', BPIConly=TRUE)$BPIC
-BPICARD5 <- getDataPpBPIC('arw-RL-mag-SAT-BV02', 'exp3', BPIConly=TRUE)$BPIC
-BPICARD6 <- getDataPpBPIC('arw-RL-mag-SAT-V0W2', 'exp3', BPIConly=TRUE)$BPIC
-BPICARD7 <- getDataPpBPIC('arw-RL-mag-SAT-BV0W2', 'exp3', BPIConly=TRUE)$BPIC
-
-allBPICs <- cbind('DDM-a'=BPICDDMa[,2],  
-                  'DDM-m'=BPICDDMm[,2], 
-                  'DDM-am'=BPICDDMam[,2], 
-                  'ARD-B'=BPICARD1[,2], 
-                  'ARD-W'=BPICARD2[,2], 
-                  'ARD-V0'=BPICARD3[,2], 
-                  'ARD-BW'=BPICARD4[,2], 
-                  'ARD-BV0'=BPICARD5[,2], 
-                  'ARD-V0W'=BPICARD6[,2], 
-                  'ARD-BV0W'=BPICARD7[,2])
-sBPICs <- apply(allBPICs, 2, sum)
-sBPICs-min(sBPICs)
+#BPICTiming<- getDataPpBPIC("arw-RL-timing_v_Tmod_EduGuess", 'exp3', BPIConly=TRUE)$BPIC
 
 # Load quantiles of winning model & RL-fARD, BPICs ---------------------------------------------------
 # DDM
-tmp <- getDataPpBPIC('ddm-RL-SAT-a', 'exp3')
-qRTsDDM <- getqRTsByCue(tmp[['data3']], tmp[['pp3']])
+tmp <- traceback(getDataPpBPIC("arw-RL-timing_v_Tmod_EduGuess", 'exp3'))
+allqRTs <- list(getqRTsByCue(tmp[['data3']], tmp[['pp3']]))
 
-# ARDf
-tmp <- getDataPpBPIC('arw-RL-mag-SAT-BV02', 'exp3')
-BPICARDf <- tmp$BPIC
-qRTsARDf <- getqRTsByCue(tmp[['data3']], tmp[['pp3']])
 
-# Combine -----------------------------------------------------------------
-allqRTs <- list(qRTsDDM, qRTsARDf)
-allBPICs <- cbind(BPICDDMa[,2],  BPICDDMm[,2], BPICDDMam[,2], BPICARDf[,2])
-sBPICs <- apply(allBPICs, 2, sum)
-sBPICs - sBPICs[4]
 
 
 # Plot --------------------------------------------------------------------
@@ -146,7 +116,7 @@ layoutM[2:4,4:5] <- 10:15 #matrix(c(2:13), nrow=3, byrow=TRUE)
 layoutM[,3] <- 8
 layoutM
 
-if(savePlot) pdf('./figures/exp3-SAT.pdf', width=7, height=7/4*3)
+pdf('./figures/exp3-SAT_V_Tmod_EDUGUESS.pdf', width=7, height=7/4*3)
 layout(layoutM, heights = c(0.01, .8, 1, 1, 0.01), widths=c(1,1,.1,1,1))
 par(oma=c(3,4,2,0), mar=c(0, 0, 1, 0.5) + 0.1, #mfcol=c(3,4), 
     mgp=c(2.75,.75,0), las=1, bty='l')
@@ -155,7 +125,7 @@ data.cex=1.5
 corrRTylim <- errRTylim <- c(.35,1.1)
 for(qRTs in allqRTs) {
   plot.new()
-  if(i == 0) mtext('RL-DDM', side=3, cex=.66*1.2, font=2, line=1)
+  if(i == 0) mtext('RL-Timing', side=3, cex=.66*1.2, font=2, line=1)
   if(i == 2) {plot.new(); mtext('RL-fARD', side=3, cex=.66*1.2, font=2, line=1)}
   for(cue in c('SPD', 'ACC')) {
     i <- i+1
@@ -206,4 +176,4 @@ for(qRTs in allqRTs) {
     
   }
 }
-if(savePlot) dev.off()
+dev.off()

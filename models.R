@@ -234,6 +234,24 @@ setupModel <- function(modelName) {
                        factors=list(S=c("s1"), cue=c('ACC', 'SPD')), 
                        responses=c("r1","r2"),
                        type="norm")
+  }
+  # arw-RL-risk-mag-Niek ----------------------------------------------------
+  else if(modelName == "arw-RL-risk-mag-Niek"){
+    # get model specification
+    load_model("RW", paste0(modelName, ".R"))
+    model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1",
+                                  B0="1",
+                                  SR="1", aV="1",
+                                  RR="1", aR="1",
+                                  V0="1", wV="1",
+                                  wS="1"),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c(st0=0, s=1, RR=-10,
+                                   SR=-10, A=0),
+                       factors=list(S=c("s1")), 
+                       responses=c("r1","r2"),
+                       type="norm")
+  
   # ddm-RL -----------------------------------------------------------------
   } else if(modelName == 'ddm-RL') {
     load_model ("ddm", "ddm-RL.R")
@@ -296,7 +314,7 @@ setupModel <- function(modelName) {
                        factors=list(S=c("s1")), 
                        responses=c("r1","r2"),
                        type="norm")
-    # ddm-RL-SAT-a -----------------------------------------------------------------
+  # ddm-RL-SAT-a -----------------------------------------------------------------
   } else if(modelName == 'ddm-RL-SAT-a') {
     load_model ("ddm", "ddm-RL-mod.R")
     model <- model.dmc(p.map=list(aV="1", SR='1', m='1',
@@ -419,22 +437,84 @@ setupModel <- function(modelName) {
                        factors=list(S=c("s1")), 
                        responses=c("r1","r2"),
                        type="norm")
-    # softmax-RL3-SAT-beta -----------------------------------------------------------------
-  } else if(modelName == 'softmax-RL3-SAT-beta') {
-    load_model ("Softmax", "softmax_RL2.R")
-    model <- model.dmc(p.map=list(Beta="cue", aV="1", SR='1'),
+  }
+    else if(modelName == 'arw-RL-timing') {
+    load_model("RW-Timing", "arw-RL-timing.R")
+    model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1",
+                                  B0="1", B_T = "1", wS='1', s_T = "1", v_T = "1", t0T = "1",
+                                  SR="1", aV="1",
+                                  V0="1", wV="1"),
                        match.map=list(M=list(s1=1, s1=2)),
-                       constants=c(),
+                       constants=c(st0=0, s=1, s_T = 1, SR=-10,
+                                    A=0, t0T = 0.05),
+                       factors=list(S=c("s1")), 
+                       responses=c("r1","r2"),
+                       type="norm")
+    # arw-RL-mag-SAT-B2 -----------------------------------------------------------------
+    }
+    else if(modelName == 'arw-RL-timing_B_Tmod') {
+    load_model("RW-Timing", "arw-RL-timing_B_Tmod.R")
+    model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1",
+                                  B0="1", B_T = "1", wS='1', s_T = "1", v_T = "1", t0T = "1",
+                                  SR="1", aV="1", B_T_mod = "cue",
+                                  V0="1", wV="1"),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c(st0=0, s=1, s_T = 1, SR=-10,
+                                   A=0, t0T = 0.05, B_T_mod.ACC=0),
                        factors=list(S=c("s1"), cue=c('ACC', 'SPD')), 
                        responses=c("r1","r2"),
                        type="norm")
-    # softmax-RL3-SAT-none -----------------------------------------------------------------
-  } else if(modelName == 'softmax-RL3-SAT-none') {
-    load_model ("Softmax", "softmax_RL2.R")
-    model <- model.dmc(p.map=list(Beta="1", aV="1", SR='1'),
+    }
+    else if(modelName == 'arw-RL-timing_B_Tmod_NoV0') {
+      load_model("RW-Timing", "arw-RL-timing_B_Tmod.R")
+      model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1", V0 = "1",
+                                    B0="1", B_T = "1", wS='1', s_T = "1", v_T = "1", t0T = "1",
+                                    SR="1", aV="1", B_T_mod = "cue", wV="1"),
+                         match.map=list(M=list(s1=1, s1=2)),
+                         constants=c(st0=0, s=1, s_T = 1, SR=-10,
+                                     A=0, t0T = 0.05, V0 = 0, B_T_mod.ACC=0),
+                         factors=list(S=c("s1"), cue=c('ACC', 'SPD')), 
+                         responses=c("r1","r2"),
+                         type="norm")
+    # arw-RL-mag-SAT-B2 -----------------------------------------------------------------
+    
+  }
+  else if(modelName == 'arw-RL-timing_B_Tmod_NoV0_EduGuess') {
+    load_model("RW-Timing-EduGuess", "arw-RL-timing_B_Tmod.R")
+    model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1", V0 = "1",
+                                  B0="1", B_T = "1", wS='1', s_T = "1", v_T = "1", t0T = "1",
+                                  SR="1", aV="1", B_T_mod = "cue", wV="1"),
                        match.map=list(M=list(s1=1, s1=2)),
-                       constants=c(),
-                       factors=list(S=c("s1")), 
+                       constants=c(st0=0, s=1, s_T = 1, SR=-10,
+                                   A=0, t0T = 0.05, V0 = 0, B_T_mod.ACC=0),
+                       factors=list(S=c("s1"), cue=c('ACC', 'SPD')), 
+                       responses=c("r1","r2"),
+                       type="norm")
+    # arw-RL-mag-SAT-B2 -----------------------------------------------------------------
+  }
+  else if(modelName == 'arw-RL-timing_v_Tmod') {
+    load_model("RW-Timing", "arw-RL-timing_v_Tmod.R")
+    model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1",
+                                  B0="1", B_T = "1", wS='1', s_T = "1", v_T = "1", t0T = "1",
+                                  SR="1", aV="1", v_T_mod = "cue",
+                                  V0="1", wV="1"),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c(st0=0, s=1, s_T = 1, SR=-10,
+                                   A=0, t0T = 0.05, v_T_mod.ACC=0),
+                       factors=list(S=c("s1"), cue=c('ACC', 'SPD')), 
+                       responses=c("r1","r2"),
+                       type="norm")
+  }
+  else if(modelName == 'arw-RL-timing_v_Tmod_EduGuess') {
+    load_model("RW-Timing-EduGuess", "arw-RL-timing_v_Tmod.R")
+    model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1",
+                                  B0="1", B_T = "1", wS='1', s_T = "1", v_T = "1", t0T = "1",
+                                  SR="1", aV="1", v_T_mod = "cue",
+                                  V0="1", wV="1"),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c(st0=0, s=1, s_T = 1, SR=-10,
+                                   A=0, t0T = 0.05, v_T_mod.ACC=0),
+                       factors=list(S=c("s1"), cue=c('ACC', 'SPD')), 
                        responses=c("r1","r2"),
                        type="norm")
   }

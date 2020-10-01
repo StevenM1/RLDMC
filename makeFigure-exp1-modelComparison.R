@@ -73,19 +73,19 @@ qRTsRD <- getqRTs(tmp[['data3']], tmp[['pp3']])
 
 # ARDl
 tmp <- getDataPpBPIC('arw-RL', 'exp1')
-BPICARDl <- tmp$BPIC
-qRTsARDl <- getqRTs(tmp[['data3']], tmp[['pp3']])
-
-# ARDf
-tmp <- getDataPpBPIC('arw-RL-mag', 'exp1')
 BPICARD <- tmp$BPIC
 qRTsARD <- getqRTs(tmp[['data3']], tmp[['pp3']])
 
+# ARDf
+tmp <- getDataPpBPIC('arw-RL-mag', 'exp1')
+BPICARDf <- tmp$BPIC
+qRTsARDf <- getqRTs(tmp[['data3']], tmp[['pp3']])
+
 # Combine accuracy per bin, quantile per bin
-allqRTs <- list(qRTsDDM, qRTsRD, qRTsARDl, qRTsARD)
+allqRTs <- list(qRTsDDM, qRTsRD, qRTsARD, qRTsARDf)
 
 # Main text model comparison for experiment 1
-allBPICs <- cbind(BPICDDM[,2], BPICRD[,2], BPICARDl[,2], BPICARD[,2])
+allBPICs <- cbind(BPICDDM[,2], BPICRD[,2], BPICARD[,2], BPICARDf[,2])
 apply(allBPICs, 2, sum)
 
 # Plot posterior predictives
@@ -110,8 +110,8 @@ for(qRTs in allqRTs) {
   }
   if(i == 1) title('RL-DDM')
   if(i == 2) title('RL-RD')
-  if(i == 3) title('RL-lARD')
-  if(i == 4) title('RL-ARD')
+  if(i == 3) title('RL-ARD')
+  if(i == 4) title('RL-fARD')
   
   ##
   plotDataPPBins(data=qRTs$q10RTsOverTime[[1]], pp=qRTs$q10RTsOverTime[[2]], dep.var='RT.10.', 

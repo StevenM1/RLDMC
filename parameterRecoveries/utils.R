@@ -81,7 +81,8 @@ simulate.full <- function(nTrialsPerSet=100, nSets=9,
 ## let's simulate the ARW model
 simulate.full.reversal <- function(nTrialsPerSet=100, nSets=9, 
                           setProbability=c(0.25, 0.75),  reversal_trialN=32,
-                          v0=1, wV=2, wS=0.3, t0=0.3, alpha=0.05, B=2,
+                          v0=1, wV=2, wS=0.3, t0=0.3, alpha=0.05, B=2, aR = 0.05,
+                          riskStartValues = c(0.001, 0.001),
                           startValues=c(0.0, 0.0)) {
   # simulates an entire experiment for a single subject
   # some 'experimental settings' can be adjusted: 
@@ -99,7 +100,8 @@ simulate.full.reversal <- function(nTrialsPerSet=100, nSets=9,
   # - B: threshold
   # finally: startValues are the values at trial=0
   
-  df <- data.frame(S=1, R=NA, RT=NA, stimulus_set=NA, reward=NA, predictionError=NA, value1=NA, value2=NA)[c()]
+  df <- data.frame(S=1, R=NA, RT=NA, stimulus_set=NA, reward=NA, predictionError=NA, value1=NA, value2=NA,
+                   riskValue1 = NA, riskValue2 = NA)[c()]
   
   # loop over stimulus sets
   for(set in 1:nSets) {
@@ -109,7 +111,7 @@ simulate.full.reversal <- function(nTrialsPerSet=100, nSets=9,
       rewardProbability <- setProbability
     }
     values <- startValues
-    
+    risk <- riskStartValues
     # loop over trials
     for(trialN in 1:nTrialsPerSet) {
       if(trialN == reversal_trialN) rewardProbability <- rev(rewardProbability)  # reverse
@@ -127,13 +129,14 @@ simulate.full.reversal <- function(nTrialsPerSet=100, nSets=9,
       
       # calculate prediction error
       predictionError <- reward - values[choice]
-      
+      risk[choice] <- risk[choice] + aR*(predictionError - risk[choice])
       # update value of chosen option with Rescorla-Wagner rule
-      values[choice] <- values[choice] + alpha*predictionError
+      values[choice] <- values[choice] + alpha*predictionError*abs(risk[choice])
       
       # off-load to dataframe
       df <- rbind(df, cbind('S'=1, thisTrial, stimulus_set=set, reward=reward, 
                             predictionError=predictionError, value1=values[1], value2=values[2],
+                            riskValue1 = risk[1], riskValue2 = risk[2],
                             trialNthisSet=trialN))
     }
   }

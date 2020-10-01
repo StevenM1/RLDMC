@@ -43,8 +43,7 @@ calculateByBin <- function(df) {
 
 getDataPpBPIC <- function(modelName, dataName, do.plot=FALSE, BPIConly=FALSE) {
   model <- setupModel(modelName)  # calls load_model(), which loads transform.dmc() and transform2.dmc()
-  dat <- loadData(dataName)[['dat']]
-#  data <- loadData(dataName)[['data']]
+  dat <- loadData(dataName, removeBlock = NULL)[['dat']]
   fn <- paste0('model-', modelName, '_data-', dataName)
   
   # Load, generate posterior preds -------------------------------------------
@@ -53,11 +52,10 @@ getDataPpBPIC <- function(modelName, dataName, do.plot=FALSE, BPIConly=FALSE) {
   if(do.plot) plot.dmc(samples, hyper=TRUE, density=TRUE, layout=c(4,4))
   if(!BPIConly) {
     pp = h.post.predict.dmc(samples = samples, adapt=TRUE,save.simulation = TRUE, cores=30)
-    #ppNoSim <- h.pp.summary(pp, samples=samples)
+    ppNoSim <- h.pp.summary(pp, samples=samples)
     
     #### Append stimulus set info to data & model --------
     nBins <- 10
-    if(!'ease' %in% colnames(dat)) dat$ease <- 1
     pp2 <- lapply(1:length(pp), addStimSetInfo, input=pp, orig_dat=dat)
     data2 <- lapply(1:length(data), addStimSetInfo, input=data, orig_dat=dat)
     if(!sfIsRunning()) sfInit(parallel=TRUE, cpus =30); sfLibrary(moments)
@@ -97,14 +95,12 @@ getqRTsByCue <- function(data3, pp3) {
 
 
 # Load quantiles of winning model & RL-fARD, BPICs ---------------------------------------------------
-modelName <- 'arw-RL-mag-SAT-V02'
-dataName <- 'exp1t'
-fn <- paste0('model-', modelName, '_data-', dataName)
-tmp <- getDataPpBPIC(modelName, dataName)
-qRTs <- getqRTsByCue(tmp[['data3']], tmp[['pp3']])
+# DDM
+tmp <- getDataPpBPIC('ddm-RL-SAT-a-st0', 'exp3')
+qRTsDDM <- getqRTsByCue(tmp[['data3']], tmp[['pp3']])
 
 # Combine -----------------------------------------------------------------
-allqRTs <- list(qRTs)
+allqRTs <- list(qRTsDDM)
 
 # Plot --------------------------------------------------------------------
 layoutM <- matrix(1:25, nrow=5, byrow=TRUE)
@@ -124,7 +120,7 @@ data.cex=1.5
 corrRTylim <- errRTylim <- c(.35,1.1)
 for(qRTs in allqRTs) {
   plot.new()
-  if(i == 0) mtext(fn, side=3, cex=.66*1.2, font=2, line=1)
+  if(i == 0) mtext('RL-DDM A3', side=3, cex=.66*1.2, font=2, line=1)
   if(i == 2) {plot.new(); mtext('RL-fARD', side=3, cex=.66*1.2, font=2, line=1)}
   for(cue in c('SPD', 'ACC')) {
     i <- i+1

@@ -30,13 +30,15 @@ calculateByBin <- function(df) {
 }
 
 getDataPpBPIC <- function(modelName, dataName, do.plot=FALSE, BPIConly=FALSE) {
+  modelName <- 'arw-RL-risk-mag-Niek'
+  dataName <- 'exp2'
   model <- setupModel(modelName)  # calls load_model(), which loads transform.dmc() and transform2.dmc()
   dat <- loadData(dataName, removeBlock = NULL)[['dat']]
   dat$bin <- dat$trialNreversal   ## important for the reversals!
-  fn <- paste0('model-', modelName, '_data-', dataName)
-  
+  #fn <- paste0('model-', modelName, '_data-', dataName)
+  #fn <- paste0('model-', modelName, ".R", '_data-', dataName)
   # Load, generate posterior preds -------------------------------------------
-  samples <- loadSamples(fn, samplesDir)
+  samples <- loadSamples("parameterRecoveries/samples/model-arw-RL-risk-mag-Niek_data-parameterRecovery-exp2-Risk")
   data <- lapply(samples, function(x) x$data)
   if(do.plot) plot.dmc(samples, hyper=TRUE, density=TRUE, layout=c(4,4))
   if(!BPIConly) {
@@ -77,7 +79,7 @@ getqRTs <- function(data3, pp3) {
 
 # Load --------------------------------------------------------------------
 # DDM
-tmp <- getDataPpBPIC('ddm-RL-st02', 'exp2')
+tmp <- getDataPpBPIC('arw-RL-risk-mag-Niek', 'exp2')
 BPICDDM <- tmp$BPIC
 qRTsDDM <- getqRTs(tmp[['data3']], tmp[['pp3']])
 
@@ -104,7 +106,7 @@ for(qRTs in allqRTs[1]) {
   par(mar=c(0,0,0,0))
   plot.new()
   if(i == 0) mtext('RL-DDM A3', side=3, cex=.66*1.2, font=2, line=1)
-  if(i == 1) {plot.new(); mtext('RL-ARD', side=3, cex=.66*1.2, font=2, line=1)}
+  if(i == 1) {plot.new(); mtext('RL-fARD', side=3, cex=.66*1.2, font=2, line=1)}
   i <- i+1
   par(mar=c(0,2,1,.5)+.1)
   plotDataPPBins(data=qRTs$meanAccOverTime[[1]], pp=qRTs$meanAccOverTime[[2]],

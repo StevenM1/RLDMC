@@ -7,7 +7,6 @@ doSample <- function(data, p.prior, pp.prior, fileName, restart=FALSE,
     samples <- h.samples.dmc(nmc=nmcBurn, p.prior=p.prior, data=data, pp.prior=pp.prior)
     samples <- h.run.unstuck.dmc(samples=samples, nmc=nmcBurn, cores=nCores, max.try=100, p.migrate=0.05, h.p.migrate=0.05, end.no.migrate=TRUE)
     save(samples, file=paste0(fileName, '.RData'))
-    
     ## create new samples object, don't add (ie remove burn-in), which will be passed to h.RUN.dmc
     samples <- h.samples.dmc(samples=samples, nmc=nmc, add=FALSE)
   }
@@ -20,6 +19,26 @@ doSample <- function(data, p.prior, pp.prior, fileName, restart=FALSE,
                        verbose=TRUE, saveFn=fileName)
 }
 
+dtnorm <- function (x, mean = 0, sd = 1, lower = -Inf, upper = Inf, log = FALSE) 
+{
+  ret <- numeric(length(x))
+  ret[x < lower | x > upper] <- if (log) 
+    -Inf
+  else 0
+  ret[upper < lower] <- NaN
+  ind <- x >= lower & x <= upper
+  if (any(ind)) {
+    denom <- pnorm(upper, mean, sd) - pnorm(lower, mean, 
+                                            sd)
+    xtmp <- dnorm(x, mean, sd, log)
+    if (log) 
+      xtmp <- xtmp - log(denom)
+    else xtmp <- xtmp/denom
+    ret[x >= lower & x <= upper] <- xtmp[ind]
+  }
+  ret
+}
+
 resetPar <- function() {
   dev.new()
   op <- par(no.readonly = TRUE)
@@ -29,7 +48,7 @@ resetPar <- function() {
 
 loadData <- function(name, exclude=TRUE, addBins=FALSE, removeBlock=NULL, subset=FALSE, dataRoot='./data') {
   otherCols <- c()
-  if(name == 'exp1' | name == 'exp2' | name == 'exp3') {
+  if(name == 'exp1' | name == 'exp2' | name == 'exp3' | name == 'exp3b' | name == 'exp4') {
     load(file.path(dataRoot, paste0('data_', name, '.RData')))
     if(exclude) {
       # remove excluded subjects
@@ -45,7 +64,7 @@ loadData <- function(name, exclude=TRUE, addBins=FALSE, removeBlock=NULL, subset
     dat$choiceIsHighP_orig <- dat$choiceIsHighP
     dat$choiceIsHighP <-  dat$choiceIsHighPpreRev
   }
-  if(name == 'exp3') otherCols <- c(otherCols, 'cue')
+  if(name == 'exp3' | name == 'exp3b') otherCols <- c(otherCols, 'cue')
   
   # remove RTs < .15 and null responses
   dat <- dat[dat$rt>.15 & !is.na(dat$rt),]
@@ -98,11 +117,30 @@ getPriors <- function(p.vector) {
   lower <- rep(0, length(p.vector))
   names(p1) <- names(p2) <- names(upper) <- names(lower) <- names(p.vector)
   
+  #s
+  p1[grepl(pattern='s', names(p1))] <- 1
+  p2[grepl(pattern='s', names(p1))] <- 3 
+  
+  #s_T
+  p1[grepl(pattern='s_T', names(p1))] <- 1
+  p2[grepl(pattern='s_T', names(p1))] <- 3 
+  
+  
+  #s_V
+  p1[grepl(pattern='v_T', names(p1))] <- 1
+  p2[grepl(pattern='v_T', names(p1))] <- 3 
+  
   # t0
   p1[grepl(pattern='t0', names(p1))] <- 0.3
   p2[grepl(pattern='t0', names(p1))] <- 0.5
   upper[grepl(pattern='t0', names(p1))] <- 1
   lower[grepl(pattern='t0', names(p1))] <- 0.025
+  
+  #t0t
+  p1[grepl(pattern='t0T', names(p1))] <- 0.3
+  p2[grepl(pattern='t0T', names(p1))] <- 0.5
+  upper[grepl(pattern='t0T', names(p1))] <- 1
+  lower[grepl(pattern='t0T', names(p1))] <- 0.025
   
   # stimulus or risk representations SR/RR
   p1[names(p1)=='SR' | names(p1) == 'RR'] = 0
@@ -130,6 +168,7 @@ getPriors <- function(p.vector) {
   
   # threshold - this may vary also across conditions, so use grepl
   p1[grepl(pattern='B0', names(p1))] = 3
+  p1[grepl(pattern='B_T', names(p1))] = 3
   
   # weight of magnitude effect / sum of EVs
   p1[grepl(pattern='wS', names(p1))] = 0
@@ -140,6 +179,12 @@ getPriors <- function(p.vector) {
   p1[grepl(pattern='Mod.', names(p1))] = 0
   p2[grepl(pattern='Mod.', names(p2))] = 1
   lower[grepl(pattern='Mod.', names(lower))] = -1  # values < -1 would indicate make the absolute parameters negative, and they can't be negative
+  
+  # Potential SAT effects: Mod(ulators) for V0, B0, t0, aV
+  p1[grepl(pattern='mod.', names(p1))] = 0
+  p2[grepl(pattern='mod.', names(p2))] = 1
+  lower[grepl(pattern='mod.', names(lower))] = -1  # values < -1 would indicate make the absolute parameters negative, and they can't be negative
+  
   
   # threshold
   p1[names(p1) == 'a' | names(p1) == 'a.SPD' | names(p1) == 'a.ACC'] = 2
@@ -165,21 +210,6 @@ getPriors <- function(p.vector) {
   p1[names(p1) == 'st0'] = 0.1
   p2[names(p1) == 'st0'] = 0.1
 #  lower[names(lower) == 'st0'] = 0
-  
-  # power-function on feedback
-  p1[names(p1) == 'pw'] = 1
-  p2[names(p2) == 'pw'] = 1
-  
-  # offset
-  p1[names(p1)=='offset'] = 27.5
-  p2[names(p1)=='offset'] = 5
-  
-  p1[names(p1) == 'pN'] = 0
-  p2[names(p2) == 'pN'] = 1
-  lower[names(p1)=='pN'] <- -Inf
-  
-  #drift rate in stationary model
-  p1[names(p1) == 'v'] = 2
   
   # softmax beta
   p1[names(p1) == 'beta' | names(p1) == 'beta.SPD' | names(p1) == 'beta.ACC'] = 1
@@ -243,7 +273,6 @@ addStimSetInfo <- function(x, input, orig_dat, addColumns=NULL, nBins=10) {
   # add other columns from original data if wanted/needed
   if(!is.null(addColumns)) {
     for(colName in addColumns) {
-      df[,colName] <- NULL
       df[idx, colName] <- orig_dat[orig_dat$sub==x, colName]
     }
   }
@@ -326,7 +355,6 @@ getDescriptives <- function(x, dep.var='RT', attr.name='RTsOverBins', id.var1='~
   # return(meanOverTime)
 }
 
-
 plotDataPPBins <- function(data, pp, dep.var='RT', xaxis='bin', colorM='blue', colorD=1, 
                            draw.legend=TRUE, legend.pos='topright', plot.new=TRUE, draw.polygon=TRUE,
                            xlim=NULL, ylim=NULL, xlab=NULL, ylab=NULL, data.cex=2, data.lwd=2,
@@ -384,10 +412,8 @@ plotFits <- function(samples, dat, nCores=30) {
   # Fit: overall & per participant
   pp = h.post.predict.dmc(samples = samples, adapt=TRUE, save.simulation = TRUE, cores=nCores)
   library(moments)
-  library(snowfall)
   nBins <- 10
   data <- lapply(samples, function(x) x$data)
-  if(!'ease' %in% colnames(dat)) dat$ease <- 1
   pp2 <- lapply(1:length(pp), addStimSetInfo, input=pp, orig_dat=dat)
   data2 <- lapply(1:length(data), addStimSetInfo, input=data, orig_dat=dat)
   if(!sfIsRunning()) sfInit(TRUE, nCores); sfLibrary(moments);

@@ -158,10 +158,10 @@ meanV2OverTimeM <- aggregate(mean_v.r2~reps*bin*ease, allV2OverTimeM, mean)
 
 
 # Plot --------------------------------------------------------------------
-if(savePlot) pdf(file='./figures/q-values.pdf', width=7, height=2.5)
+pdf(file='./figures/q-values.pdf', width=7, height=2.5)
 par(mfrow=c(1,4), las=1, bty='l', oma=c(0,1,1,0), mar=c(4, 3, 2, 0.5) + 0.1, mgp=c(2.25,.75,0))
 # Q-values
-plot(0,0, type='n', xlim=range(meanQ1OverTimeM$bin)+c(-.5, .5), ylim=c(0, .85), xlab='Trial bin', ylab='Q-values', main='A. Q-values')
+plot(0,0, type='n', xlim=range(meanQ1OverTimeM$bin)+c(-.5, .5), ylim=c(0, .85), xlab='Trial bin', ylab='Q-values', main='Q-values')
 abline(h=seq(0, 1, .1), col='grey')
 abline(v=seq(0, 10, 2), col='grey')
 for(ease in unique(meanQ1OverTimeM$ease)) {
@@ -170,7 +170,7 @@ for(ease in unique(meanQ1OverTimeM$ease)) {
 }
 
 # delta here
-plot(0,0, type='n', xlim=range(meanDeltaQOverTime$bin)+c(-.5, .5), ylim=c(0, .85), xlab='Trial bin', ylab=expression(paste(Delta, 'Q-values')), main=expression(bold(paste('B. ', Delta, 'Q-values'))))
+plot(0,0, type='n', xlim=range(meanDeltaQOverTime$bin)+c(-.5, .5), ylim=c(0, .85), xlab='Trial bin', ylab=expression(paste(Delta, 'Q-values')), main=expression(bold(paste(Delta, 'Q-values'))))
 abline(h=seq(0, 1, .1), col='grey')
 abline(v=seq(0, 10, 2), col='grey')
 for(ease in unique(meanDeltaQOverTime$ease)) {
@@ -178,21 +178,22 @@ for(ease in unique(meanDeltaQOverTime$ease)) {
 }
 
 # sum here
-plot(0,0, type='n', xlim=range(meanDeltaQOverTime$bin)+c(-.5, .5), ylim=c(0, .85), xlab='Trial bin', ylab=expression(paste(Sigma, 'Q-values')), main=expression(bold(paste('C. ', Sigma, 'Q-values'))))
+plot(0,0, type='n', xlim=range(meanDeltaQOverTime$bin)+c(-.5, .5), ylim=c(0, .85), xlab='Trial bin', ylab=expression(paste(Sigma, 'Q-values')), main=expression(bold(paste(Sigma, 'Q-values'))))
 abline(h=seq(0, 1, .1), col='grey')
 abline(v=seq(0, 10, 2), col='grey')
 for(ease in unique(meanDeltaQOverTime$ease)) {
   draw.polygon(meanSumQOverTime[meanSumQOverTime$ease==ease,], dep.var='sumQ', colorM=get.color(ease))
 }
-legend('bottomright', legend=c('0.8/0.2', '0.7/0.3', '0.65/0.35', '0.6/0.4'), bg='white', col=1:4, pch=15, title='Difficulty')
+legend('bottomright', legend=c('0.8/0.2', '0.7/0.3', '0.65/0.35', '0.6/0.4'), col=1:4, pch=15, bty='n', title='Difficulty')
 
 # drift rates
-plot(0,0, type='n', xlim=range(meanV1OverTimeM$bin)+c(-.5, .5), ylim=c(1.0, 4.5), xlab='Trial bin', ylab='Drift rates', main='D. Drift rates')
+plot(0,0, type='n', xlim=range(meanV1OverTimeM$bin)+c(-.5, .5), ylim=c(1.0, 4.5), xlab='Trial bin', ylab='Drift rates', main='Drift rates')
 abline(h=seq(0, 5, .25), col='grey')
 abline(v=seq(0, 10, 2), col='grey')
 for(ease in unique(allV1OverTimeM$ease)) {
   draw.polygon(meanV1OverTimeM[meanV1OverTimeM$ease==ease,], dep.var='mean_v.r1', colorM=get.color(ease))
   draw.polygon(meanV2OverTimeM[meanV2OverTimeM$ease==ease,], dep.var='mean_v.r2', colorM=get.color(ease))
 }
-if(savePlot) dev.off()
+
+dev.off()
 
