@@ -7,8 +7,8 @@ if(length(args)>0) {
 } else {
   # manual run
   rm(list=ls())
-  modelName <- 'arw-RL-mag-SAT-B2' #'ddm-RL-nonlinear-svszst0'
-  dataName <- 'exp1b'     # NB: exp 3 = SAT; exp 2 = reversal learning
+  modelName <- 'arw-RL-mag'
+  dataName <- 'exp1'     # NB: exp 3 = SAT; exp 2 = reversal learning
   diagnosticsOnly <- TRUE
 }
 
