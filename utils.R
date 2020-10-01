@@ -1,109 +1,58 @@
 doSample <- function(data, p.prior, pp.prior, fileName, restart=FALSE,
-                     nCores=31, nmcBurn=150, nmc=250, nIter=100, useRUN=False) {
-  if(useRUN) {
-    samples <- h.samples.dmc(nmc=nmcBurn, p.prior=p.prior, data=data, pp.prior=pp.prior)
-    samples <- h.RUN.dmc(hsamples = samples, cores=nCores, verbose=TRUE, saveFn=fileName)
-    save(samples, save=paste0(saveFn, '.RData'))
+                     nCores=31, nmcBurn=250, nmc=1000, cut.converge=1.03, thorough=TRUE) {
+  if(restart==FALSE & file.exists(paste0(fileName, '.RData'))) {
+    samples <- loadSamples(fileName)
   } else {
-    fileNameFull <- paste0(fileName, '.RData')
-    if(file.exists(fileNameFull)) {
-      load(fileNameFull)
-    }
+    ## run burn-in first - this should wash out most of the prior already, reduce burn-time of h.RUN.dmc
+    samples <- h.samples.dmc(nmc=nmcBurn, p.prior=p.prior, data=data, pp.prior=pp.prior)
+    samples <- h.run.unstuck.dmc(samples=samples, nmc=nmcBurn, cores=nCores, max.try=100, p.migrate=0.05, h.p.migrate=0.05, end.no.migrate=TRUE)
+    save(samples, file=paste0(fileName, '.RData'))
     
-    if(restart | !exists('burn1')) {
-      burn <- h.samples.dmc(nmc=nmcBurn, p.prior=p.prior, data=data, pp.prior=pp.prior)
-      # burn1 <- h.run.dmc(burn, cores=nCores, p.migrate=0.05, h.p.migrate = 0.05, report=10)
-      burn1 <- h.run.unstuck.dmc(samples=burn, nmc=nmcBurn, cores=nCores, p.migrate=0.05, h.p.migrate=0.05, end.no.migrate=TRUE)
-      save(burn1, file=fileNameFull)
-    }
-    
-    if(restart | !exists('samples')) {
-      samples <- burn1
-    }
-    
-    # Sample from posterior, starting from the end result of burn1
-    samples <- h.run.converge.dmc(samples=h.samples.dmc(nmc=nmc, samples=samples, add=TRUE),
-                                  thorough=TRUE, nmc = nmc, cores=nCores,
-                                  save=paste0(fileName, "_autoconverge"))
-    save(burn1, samples, file=fileNameFull)
-  }  
+    ## create new samples object, don't add (ie remove burn-in), which will be passed to h.RUN.dmc
+    samples <- h.samples.dmc(samples=samples, nmc=nmc, add=FALSE)
+  }
+  if(samples[[1]]$nmc < nmc) {
+    nAdd <- nmc - samples[[1]]$nmc
+    print(paste0('Adding ', nAdd, ' samples...'))
+    samples <- h.samples.dmc(samples=samples, nmc=nAdd, add=TRUE)
+  }
+  samples <- h.RUN.dmc(hsamples = samples, cores=nCores, cut.converge=cut.converge, thorough = thorough,
+                       verbose=TRUE, saveFn=fileName)
 }
 
-loadData <- function(name, subset=FALSE, addBins=FALSE, addStimSets=FALSE) {
+resetPar <- function() {
+  dev.new()
+  op <- par(no.readonly = TRUE)
+  dev.off()
+  op
+}
+
+loadData <- function(name, exclude=TRUE, addBins=FALSE, removeBlock=NULL, subset=FALSE, dataRoot='./data') {
   otherCols <- c()
-  if(name == 'calibration_subset' | name == 'calibration' | name == 'calibration-subset') {
-    load('../RLDDM/data/data_exp-all.Rdata')
-    #  dat <- droplevels(dat[dat$pp==sub,])
-    dat <- dat[dat$task=='Calibration' & !is.na(dat$pp),]
-    dat$ease <- abs(dat$high_stim_prob-dat$low_stim_prob)
-    
-    if(subset | name == 'calibration_subset' | name == 'calibration-subset') {
-      ppsNoLearning <- aggregate(choiceIsHighP~pp*ease, dat, mean)
-      ppsNoLearning <- ppsNoLearning[ppsNoLearning$choiceIsHighP>0.95 | ppsNoLearning$choiceIsHighP<0.05,]
-      idx <- rep(FALSE, nrow(dat))
-      for(i in 1:nrow(ppsNoLearning)) {
-        idx <- idx | (dat$pp == ppsNoLearning[i, 'pp'] & dat$ease == ppsNoLearning[i, 'ease'])
-        print(dat[(dat$pp == ppsNoLearning[i, 'pp'] & dat$ease == ppsNoLearning[i, 'ease']), 'reward'][1:7])
-      }
-      dat <- droplevels(dat[!idx,])
+  if(name == 'exp1' | name == 'exp2' | name == 'exp3') {
+    load(file.path(dataRoot, paste0('data_', name, '.RData')))
+    if(exclude) {
+      # remove excluded subjects
+      dat <- droplevels(dat[!dat$excl,])
     }
-    #dat <- droplevels(dat[!dat$pp %in% removePps,])
+    if(subset) {
+      dat <- dat[!dat$subset,]
+    }
     dat$sub <- as.factor(as.integer(dat$pp))
-    # Remove RTs > 1.5 and RTs < .125
-    dat <- droplevels(dat[dat$rt>.125,])
-    dat <- dat[!is.na(dat$pp),]
-    dat$sub <- as.factor(as.integer(as.factor(dat$pp)))
-  } else if(name == 'annie') {
-    load('../RLDDM/data/data_annie_N74.Rdat')
-    dat$sub <- as.factor(as.numeric(as.factor(dat$workerId)))
-    dat$reward <- dat$outcome_num
-    dat$stimulus_set <- as.numeric(dat$stimulus_set)
-    dat$ease <- round(abs(dat$prob_win_correct_rev - (1-dat$prob_win_correct_rev)),1)
-    dat$RT <- dat$rt <- dat$rt/1000
-    dat <- dat[!is.na(dat$RT),]
-    dat <- dat[!is.na(dat$choices),]
-    dat$choiceIsHighP <- dat$choices-1
-  } else if(name == 'annie-chris' | name == 'annie_chris') {
-    dat <- read.csv('../RLDDM/data/data_annie_Chris.csv')
-    dat$sub <- as.factor(as.numeric(as.factor(dat$SubjID)))
-    
-    
-    dat$reward <- dat$rewards
-    dat$stimulus_set <- as.numeric(dat$stimulus_set)
-    dat$ease <- round(abs(dat$prob_win_correct_rev - (1-dat$prob_win_correct_rev)),2)
-    dat$choiceIsHighP <- dat$choices-1
-    
-    dat$block <- ifelse(dat$stimulus_set<2, 1, ifelse(dat$stimulus_set<4, 2, ifelse(dat$stimulus_set<6,3,4)))
-    dat$RT <- dat$rt <-  as.numeric(as.character(dat$rt))
-    dat <- dat[!is.na(dat$RT),]
-    dat <- dat[!is.na(dat$choices),]
-    
-    # always exclude subjects 1 & 38 - experiment crashed
-    dat <- dat[dat$sub != 38,]
-    
-    # exclude block 4 for subject 1
-    dat <- dat[!(dat$sub==1 & dat$stimulus_set>5),]
-    dat$sub <- as.factor(as.numeric(as.factor(dat$SubjID)))  # re-number
-    dat <- droplevels(dat)
-    
-  } else if(name == 'SAT' | name=='sat') {
-    load('../RLDDM/data/data_exp-pilot3.Rdata')
-    #  dat <- droplevels(dat[dat$pp==sub,])
-    #dat <- dat[dat$task=='Calibration' & !is.na(dat$pp),]
-    # dat$ease <- abs(dat$high_stim_prob-dat$low_stim_prob)
-    #dat <- droplevels(dat[!dat$pp %in% removePps,])
-    dat$sub <- as.factor(as.integer(dat$pp))
-    # Remove RTs > 1.5 and RTs < .125
-    dat <- droplevels(dat[dat$rt>.125,])
-    dat <- dat[!is.na(dat$pp),]
-    dat$sub <- as.factor(as.integer(as.factor(dat$pp)))
-    otherCols <- c('cue')
+  } 
+  if(name == 'exp2') {
+    # use accuracy coding, reversing accuracies after reversals
+    dat$choiceIsHighP_orig <- dat$choiceIsHighP
+    dat$choiceIsHighP <-  dat$choiceIsHighPpreRev
   }
+  if(name == 'exp3') otherCols <- c(otherCols, 'cue')
   
-  # remove RTs < .15
-  dat <- dat[dat$rt>.15,]
-  
+  # remove RTs < .15 and null responses
+  dat <- dat[dat$rt>.15 & !is.na(dat$rt),]
+  if(!is.null(removeBlock)) dat <- dat[dat$block != removeBlock,]
   rownames(dat) <- NULL
+  
+  # Prepare for fitting
   cvs <- list()
   choiceIdx <- list()
   for(sub in unique(dat$sub)) {
@@ -117,21 +66,21 @@ loadData <- function(name, subset=FALSE, addBins=FALSE, addStimSets=FALSE) {
       }
     }
   }
+  
+  # make DMC-style
   data <- dat
   data$s <- data$sub
-  data$R <- factor(ifelse(data$choiceIsHighP==0, 'r1', 'r2'))
+  data$R <- factor(ifelse(data$choiceIsHighP==0, 'r1', 'r2'))  # accuracy-coded: r1 = error, r2 = correct
   data$RT <- dat$rt
-  if(addStimSets) {
-    data$S <- factor(paste('s', data$stimulus_set, sep=''), levels=paste0('s', 1:4))
-  } else {
-    data$S <- factor('s1')
-  }
+  data$S <- factor('s1')
+  
   if(!addBins) {
     data <- data[,c('s', 'S', 'R', 'RT', otherCols)]
   } else {
     data$bin <- factor(data$bin, levels=paste0('b', 1:6))
     data <- data[,c('s', 'S', 'R', 'RT', 'bin', otherCols)]
   }
+  
   # Add covariates and other useful things as attributes
   attr(data, 'startingValues') <- d$values
   attr(data, 'trialsToIgnore') <- d$trialsToIgnore
@@ -141,27 +90,6 @@ loadData <- function(name, subset=FALSE, addBins=FALSE, addStimSets=FALSE) {
   return(list(data=data, dat=dat))
 }
 
-loadSamples <- function(fn, samplesDir) {
-  fnExt <- file.path(samplesDir, paste0(fn, '.RData'))
-  fnAutoConverge <- gsub('.RData', '_autoconverge.RData', fnExt)
-  hasLoaded <- FALSE
-  if(file.exists(fnAutoConverge)) {
-    if(file.info(fnAutoConverge)$mtime > file.info(fnExt)$mtime) {
-      warning('Autoconverge is newest samples available. Sampling probably hasn\'t finished yet')
-      load(fnAutoConverge)
-      loadFinal <- TRUE
-    }}
-  if(!hasLoaded) {
-    load(fnExt)
-    if('samples' %in% ls()) {
-      print('Loaded final samples')
-    } else {
-      warning('samples not found, only burn found...')
-      return(burn1)
-    }
-  }
-  return(samples)
-}
 
 getPriors <- function(p.vector) {
   dists <- rep('tnorm', length(p.vector))
@@ -171,10 +99,10 @@ getPriors <- function(p.vector) {
   names(p1) <- names(p2) <- names(upper) <- names(lower) <- names(p.vector)
   
   # t0
-  p1[names(p1)=='t0'] <- 0.2
-  p2[names(p1)=='t0'] <- 0.5
-  upper[names(p1)=='t0'] <- 1
-  lower[names(p1)=='t0'] <- 0.025
+  p1[grepl(pattern='t0', names(p1))] <- 0.3
+  p2[grepl(pattern='t0', names(p1))] <- 0.5
+  upper[grepl(pattern='t0', names(p1))] <- 1
+  lower[grepl(pattern='t0', names(p1))] <- 0.025
   
   # stimulus or risk representations SR/RR
   p1[names(p1)=='SR' | names(p1) == 'RR'] = 0
@@ -182,46 +110,82 @@ getPriors <- function(p.vector) {
   lower[names(p1)=='SR' | names(p1) == 'RR'] = NA
   upper[names(p1)=='SR' | names(p1) == 'RR'] = NA
   
-  # learning rate aV or aR
-  p1[names(p1)=='aV' | names(p1)=='aR'] <- -1.6  # corresponds to 0.05
-  lower[names(p1)=='aV' | names(p1)=='aR'] <- NA  # corresponds to 0
+  # # learning rate aV or aR
+  # p1[names(p1)=='aV' | names(p1)=='aR'] <- -1.6  # corresponds to 0.05
+  # lower[names(p1)=='aV' | names(p1)=='aR'] <- NA  # corresponds to 0
+  p1[grepl(pattern='aV', names(p1)) | grepl(pattern='aR', names(p1))] <- -1.6  # corresponds to 0.05
+  lower[grepl(pattern='aV', names(p1)) | grepl(pattern='aR', names(p1))] <- NA  # corresponds to 0
   
   # urgency v0 - may vary across conditions, so use grepl
   p1[grepl(pattern='V0', names(p1))] <- 2
   lower[grepl(pattern='V0', names(p1))] <- NA
   
   # weight on v
-  p1[names(p1) == 'wV'] = 9
+  p1[grepl(pattern='wV', names(p1))] = 9
+  
+  # weight on B
+  p1[grepl(pattern='wB', names(p1))] = 0
+  p2[grepl(pattern='wB', names(p2))] = 0.1
+  lower[grepl(pattern='wB', names(p1))] = NA
   
   # threshold - this may vary also across conditions, so use grepl
   p1[grepl(pattern='B0', names(p1))] = 3
   
   # weight of magnitude effect / sum of EVs
-  p1[names(p1) == 'wS'] = 0
-  p2[names(p2) == 'wS'] = 3
-  lower[names(p2) == 'wS'] = NA
+  p1[grepl(pattern='wS', names(p1))] = 0
+  p2[grepl(pattern='wS', names(p2))] = 3
+  lower[grepl(pattern='wS', names(lower))] = NA
   
-  # DDM parameters
+  # Potential SAT effects: Mod(ulators) for V0, B0, t0, aV
+  p1[grepl(pattern='Mod.', names(p1))] = 0
+  p2[grepl(pattern='Mod.', names(p2))] = 1
+  lower[grepl(pattern='Mod.', names(lower))] = -1  # values < -1 would indicate make the absolute parameters negative, and they can't be negative
+  
   # threshold
-  p1[names(p1) == 'a'] = 2
-  p2[names(p1) == 'a'] = 0.5
+  p1[names(p1) == 'a' | names(p1) == 'a.SPD' | names(p1) == 'a.ACC'] = 2
+  p2[names(p1) == 'a' | names(p1) == 'a.SPD' | names(p1) == 'a.ACC'] = 0.5
   
   # linear effect m
-  p1[names(p1) == 'm'] = 2
-  p2[names(p1) == 'm'] = 5
+  p1[names(p1) == 'm' | names(p1) == 'm.SPD' | names(p1) == 'm.ACC'] = 2
+  p2[names(p1) == 'm' | names(p1) == 'm.SPD' | names(p1) == 'm.ACC'] = 5
+  
+  # non-linear effect vmax
+  p1[names(p1) == 'vmax'] = 2
+  p2[names(p2) == 'vmax'] = 5
   
   # sv
   p1[names(p1) == 'sv'] = 0.1
-  p2[names(p1) == 'sv'] = 0.1
+  p2[names(p2) == 'sv'] = 0.1
+  
+  # sz
+  p1[names(p1) == 'sz'] = 0.1
+  p2[names(p2) == 'sz'] = 0.1
   
   # st0
   p1[names(p1) == 'st0'] = 0.1
   p2[names(p1) == 'st0'] = 0.1
+#  lower[names(lower) == 'st0'] = 0
   
+  # power-function on feedback
+  p1[names(p1) == 'pw'] = 1
+  p2[names(p2) == 'pw'] = 1
+  
+  # offset
+  p1[names(p1)=='offset'] = 27.5
+  p2[names(p1)=='offset'] = 5
+  
+  p1[names(p1) == 'pN'] = 0
+  p2[names(p2) == 'pN'] = 1
+  lower[names(p1)=='pN'] <- -Inf
+  
+  #drift rate in stationary model
+  p1[names(p1) == 'v'] = 2
   
   # softmax beta
-  p1[names(p1) == 'beta'] = 1
-  p2[names(p1) == 'beta'] = 1
+  p1[names(p1) == 'beta' | names(p1) == 'beta.SPD' | names(p1) == 'beta.ACC'] = 1
+  p2[names(p1) == 'beta' | names(p1) == 'beta.SPD' | names(p1) == 'beta.ACC'] = 5
+  p1[names(p1) == 'Beta' | names(p1) == 'Beta.SPD' | names(p1) == 'Beta.ACC'] = 1
+  p2[names(p1) == 'Beta' | names(p1) == 'Beta.SPD' | names(p1) == 'Beta.ACC'] = 5
   
   # lba sd_v
   p1[grepl(pattern='sd_v', x=names(p1))] = 1
@@ -229,9 +193,9 @@ getPriors <- function(p.vector) {
   lower[grepl(pattern='sd_v', x=names(p1))] = 0
 
   # lba A
-  p1[grepl(pattern='A', x=names(p1))] = 1
-  p2[grepl(pattern='A', x=names(p1))] = 1
-  lower[grepl(pattern='A', x=names(p1))] = 0
+  p1[grepl(pattern='A\\.', x=names(p1)) | names(p1) == 'A'] = 1
+  p2[grepl(pattern='A\\.', x=names(p1)) | names(p1) == 'A'] = 1
+  lower[grepl(pattern='A\\.', x=names(p1)) | names(p1) == 'A'] = 0
   
   # combine everything
   p.prior <- prior.p.dmc(
@@ -256,7 +220,7 @@ getPriors <- function(p.vector) {
   return(pp.prior)
 }
 
-addStimSetInfo <- function(x, input, orig_dat, addColumns=NULL) {
+addStimSetInfo <- function(x, input, orig_dat, addColumns=NULL, nBins=10) {
   df <- input[[x]]
   df$stimSet <- orig_dat[orig_dat$sub==x, 'stimulus_set']
   df$ease <- orig_dat[orig_dat$sub==x, 'ease']
@@ -279,6 +243,7 @@ addStimSetInfo <- function(x, input, orig_dat, addColumns=NULL) {
   # add other columns from original data if wanted/needed
   if(!is.null(addColumns)) {
     for(colName in addColumns) {
+      df[,colName] <- NULL
       df[idx, colName] <- orig_dat[orig_dat$sub==x, colName]
     }
   }
@@ -301,6 +266,12 @@ addStimSetInfo <- function(x, input, orig_dat, addColumns=NULL) {
 
 calculateByBin <- function(df) {
   df$acc <- as.integer(df$R)==2
+  
+  attr(df, 'qRTs') <- do.call(data.frame, aggregate(RT~reps*bin, df, quantile, probs=seq(.1, .9, .4))) #cbind(quants[quants$acc==1,c('reps', 'bin')], quants[quants$acc==1,'RT'][,1])
+  attr(df, 'qRTsCorrect') <- do.call(data.frame, aggregate(RT~reps*bin, df[df$acc==1,], quantile, probs=seq(.1, .9, .4))) #cbind(quants[quants$acc==1,c('reps', 'bin')], quants[quants$acc==1,'RT'][,1])
+  attr(df, 'qRTsError') <- do.call(data.frame, aggregate(RT~reps*bin, df[df$acc==0,], quantile, probs=seq(.1, .9, .4))) #cbind(quants[quants$acc==1,c('reps', 'bin')], quants[quants$acc==1,'RT'][,1])
+  attr(df, 'qRTsCorrectByEase') <- do.call(data.frame, aggregate(RT~reps*bin*ease, df[df$acc==1,], quantile, probs=seq(.1, .9, .4))) #cbind(quants[quants$acc==1,c('reps', 'bin')], quants[quants$acc==1,'RT'][,1])
+  attr(df, 'qRTsErrorByEase') <- do.call(data.frame, aggregate(RT~reps*bin*ease, df[df$acc==0,], quantile, probs=seq(.1, .9, .4))) #cbind(quants[quants$acc==1,c('reps', 'bin')], quants[quants$acc==1,'RT'][,1])
   
   attr(df, 'RTsOverBins') <- aggregate(RT~reps*bin, df, mean)
   attr(df, 'AccOverBins') <- aggregate(acc~reps*bin, df, mean)
@@ -355,19 +326,34 @@ getDescriptives <- function(x, dep.var='RT', attr.name='RTsOverBins', id.var1='~
   # return(meanOverTime)
 }
 
-plotDataPPBins <- function(data, pp, dep.var='RT', xaxis='bin', colorM='blue', colorD=1, draw.legend=TRUE, plot.new=TRUE, draw.polygon=TRUE,
-                           xlim=NULL, ylim=NULL) {
+
+plotDataPPBins <- function(data, pp, dep.var='RT', xaxis='bin', colorM='blue', colorD=1, 
+                           draw.legend=TRUE, legend.pos='topright', plot.new=TRUE, draw.polygon=TRUE,
+                           xlim=NULL, ylim=NULL, xlab=NULL, ylab=NULL, data.cex=2, data.lwd=2,
+                           hline.by=0.1, axhlines=NULL, plot.model.points=TRUE,
+                           vline.by=2, axvlines=NULL, xaxt='s', yaxt='s') {
   if(is.null(xlim))  xlim = range(data[,xaxis])+c(-.5, .5)
   if(is.null(ylim)) {
     ylimD = range(data[,dep.var])*c(.9, 1.1)
     ylimM = range(pp[,dep.var])*c(.9, 1.1)
     ylim = c(min(ylimD[1], ylimM[1]), max(ylimD[2], ylimM[2]))
   }
+  if(is.null(xlab)) xlab <- xaxis
+  if(is.null(ylab)) ylab <- dep.var
   
   # empty canvas
   if(plot.new) {
-    plot(0,0, type='n', xlim=xlim, ylim=ylim, xlab=xaxis, ylab=dep.var)
-    abline(h=seq(0, 5, .1), col='grey', lty=2)
+    plot(0,0, type='n', xlim=xlim, ylim=ylim, xlab=xlab, ylab=ylab, xaxt=xaxt, yaxt=yaxt)
+    if(!is.null(axhlines)) {
+      abline(h=axhlines, col='lightgrey', lty=1)
+    } else {
+      abline(h=seq(0, 5, hline.by), col='lightgrey', lty=1)
+    }
+    if(!is.null(axvlines)) {
+      abline(v=axvlines, col='lightgrey', lty=1)
+    } else {
+      abline(v=seq(0, 20, vline.by), col='lightgrey', lty=1)
+    }
   }
   
   if(draw.polygon) {
@@ -379,58 +365,195 @@ plotDataPPBins <- function(data, pp, dep.var='RT', xaxis='bin', colorM='blue', c
   }
   
   # model
-  points(pp[,xaxis], pp[,dep.var], pch=20, col=colorM, cex=.01)
+  if(plot.model.points) points(pp[,xaxis], pp[,dep.var], pch=20, col=colorM, cex=.01)
   
   # data
-  points(data[,xaxis], data[,dep.var], col=colorD, pch=20, cex=2)
-  lines(data[,xaxis], data[,dep.var], col=colorD, lwd=2)
+  points(data[,xaxis], data[,dep.var], col=colorD, pch=20, cex=data.cex)
+  lines(data[,xaxis], data[,dep.var], col=colorD, lwd=data.lwd)
   if(!draw.polygon) {
-    if(draw.legend) legend('topright', c('Data', 'Model'), lty=c(1, NA), lwd=c(2, 2), col=c(colorD,colorM), pch=c(20, 20), bty='n')
+    if(draw.legend) legend(legend.pos, c('Data', 'Model'), lty=c(1, NA), lwd=c(2, 2), col=c(colorD,colorM), pch=c(20, 20), bty='n')
   } else {
-    if(draw.legend) legend('topright', c('Data', 'Model'), lty=c(1, NA), 
+    if(draw.legend) legend(legend.pos, c('Data', 'Model'), lty=c(1, NA), 
                            fill=c(NA, rgb(col2rgb(colorM)[1]/255, col2rgb(colorM)[2]/255, col2rgb(colorM)[3]/255, alpha=.3)),
                            border=c(NA, 'black'),
                            lwd=c(2, NA), col=c(colorD,colorM), pch=c(20, NA), bty='n')
   }
 }
 
-plotDataPPTrialN <- function(data, pp, dep.var='RT', xaxis='trialN_reversal', colorM=1, colorD=1, draw.legend=TRUE, plot.new=TRUE, draw.polygon=TRUE,
-                           xlim=NULL, ylim=NULL) {
-  if(is.null(xlim))  xlim = range(data[,xaxis])+c(-.5, .5)
-  if(is.null(ylim)) {
-    ylimD = range(data[,dep.var])*c(.9, 1.1)
-    ylimM = range(pp[,dep.var])*c(.9, 1.1)
-    ylim = c(min(ylimD[1], ylimM[1]), max(ylimD[2], ylimM[2]))
+plotFits <- function(samples, dat, nCores=30) {
+  # Fit: overall & per participant
+  pp = h.post.predict.dmc(samples = samples, adapt=TRUE, save.simulation = TRUE, cores=nCores)
+  library(moments)
+  library(snowfall)
+  nBins <- 10
+  data <- lapply(samples, function(x) x$data)
+  if(!'ease' %in% colnames(dat)) dat$ease <- 1
+  pp2 <- lapply(1:length(pp), addStimSetInfo, input=pp, orig_dat=dat)
+  data2 <- lapply(1:length(data), addStimSetInfo, input=data, orig_dat=dat)
+  if(!sfIsRunning()) sfInit(TRUE, nCores); sfLibrary(moments);
+  pp3 <- sfLapply(pp2, calculateByBin)
+  data3 <- lapply(data2, calculateByBin)
+  
+  # get quantiles
+  q10RTs <- list(getDescriptives(data3, dep.var='RT.10.', attr.name='qRTsCorrect', id.var1='~bin', id.var2=NULL),
+                 getDescriptives(pp3, dep.var='RT.10.', attr.name='qRTsCorrect', id.var1='~reps*bin', id.var2=NULL))
+  q50RTs <- list(getDescriptives(data3, dep.var='RT.50.', attr.name='qRTsCorrect', id.var1='~bin', id.var2=NULL),
+                 getDescriptives(pp3, dep.var='RT.50.', attr.name='qRTsCorrect', id.var1='~reps*bin', id.var2=NULL))
+  q90RTs <- list(getDescriptives(data3, dep.var='RT.90.', attr.name='qRTsCorrect', id.var1='~bin', id.var2=NULL),
+                 getDescriptives(pp3, dep.var='RT.90.', attr.name='qRTsCorrect', id.var1='~reps*bin', id.var2=NULL))
+  q10RTsE <- list(getDescriptives(data3, dep.var='RT.10.', attr.name='qRTsError', id.var1='~bin', id.var2=NULL),
+                  getDescriptives(pp3, dep.var='RT.10.', attr.name='qRTsError', id.var1='~reps*bin', id.var2=NULL))
+  q50RTsE <- list(getDescriptives(data3, dep.var='RT.50.', attr.name='qRTsError', id.var1='~bin', id.var2=NULL),
+                  getDescriptives(pp3, dep.var='RT.50.', attr.name='qRTsError', id.var1='~reps*bin', id.var2=NULL))
+  q90RTsE <- list(getDescriptives(data3, dep.var='RT.90.', attr.name='qRTsError', id.var1='~bin', id.var2=NULL),
+                  getDescriptives(pp3, dep.var='RT.90.', attr.name='qRTsError', id.var1='~reps*bin', id.var2=NULL))
+  meanAcc <- list(getDescriptives(data3, dep.var='acc', attr.name='AccOverBins', id.var1='~bin', id.var2=NULL),
+                  getDescriptives(pp3, dep.var='acc', attr.name='AccOverBins', id.var1='~reps*bin', id.var2=NULL))
+  
+  par(mfrow=c(1,3), mar=c(5,4,4,1)+.1, oma=c(0,0,1,0))
+  plotDataPPBins(data=meanAcc[[1]], pp=meanAcc[[2]],
+                 xaxt='s',
+                 dep.var='acc', ylab='Accuracy', xlab = 'Trial bin',
+                 legend.pos='bottomright', ylim=c(0.5, 0.95), hline.by=0.1)
+  title('Accuracy')
+  
+  plotDataPPBins(data=q10RTs[[1]], pp=q10RTs[[2]], dep.var='RT.10.', ylim=c(.4, 1.2), xaxt='s', ylab='RT (s)', xlab='Trial bin')
+  plotDataPPBins(data=q50RTs[[1]], pp=q50RTs[[2]], dep.var='RT.50.', plot.new = FALSE, draw.legend=FALSE)
+  plotDataPPBins(data=q90RTs[[1]], pp=q90RTs[[2]], dep.var='RT.90.', plot.new = FALSE, draw.legend=FALSE)
+  title('Correct RTs')
+  
+  plotDataPPBins(data=q10RTsE[[1]], pp=q10RTsE[[2]], dep.var='RT.10.', ylim=c(.4, 1.2), xaxt='s', ylab='RT (s)', xlab='Trial bin')
+  plotDataPPBins(data=q50RTsE[[1]], pp=q50RTsE[[2]], dep.var='RT.50.', plot.new = FALSE, draw.legend=FALSE)
+  plotDataPPBins(data=q90RTsE[[1]], pp=q90RTsE[[2]], dep.var='RT.90.', plot.new = FALSE, draw.legend=FALSE)
+  title('Error RTs')
+  title('Across subjects', outer=TRUE)
+  
+  
+  ## by subject
+  q10RTs <- list(getDescriptives(data3, dep.var='RT.10.', attr.name='qRTsCorrect', id.var1='~bin*s', id.var2=NULL),
+                 getDescriptives(pp3, dep.var='RT.10.', attr.name='qRTsCorrect', id.var1='~reps*bin*s', id.var2=NULL))
+  q50RTs <- list(getDescriptives(data3, dep.var='RT.50.', attr.name='qRTsCorrect', id.var1='~bin*s', id.var2=NULL),
+                 getDescriptives(pp3, dep.var='RT.50.', attr.name='qRTsCorrect', id.var1='~reps*bin*s', id.var2=NULL))
+  q90RTs <- list(getDescriptives(data3, dep.var='RT.90.', attr.name='qRTsCorrect', id.var1='~bin*s', id.var2=NULL),
+                 getDescriptives(pp3, dep.var='RT.90.', attr.name='qRTsCorrect', id.var1='~reps*bin*s', id.var2=NULL))
+  q10RTsE <- list(getDescriptives(data3, dep.var='RT.10.', attr.name='qRTsError', id.var1='~bin*s', id.var2=NULL),
+                  getDescriptives(pp3, dep.var='RT.10.', attr.name='qRTsError', id.var1='~reps*bin*s', id.var2=NULL))
+  q50RTsE <- list(getDescriptives(data3, dep.var='RT.50.', attr.name='qRTsError', id.var1='~bin*s', id.var2=NULL),
+                  getDescriptives(pp3, dep.var='RT.50.', attr.name='qRTsError', id.var1='~reps*bin*s', id.var2=NULL))
+  q90RTsE <- list(getDescriptives(data3, dep.var='RT.90.', attr.name='qRTsError', id.var1='~bin*s', id.var2=NULL),
+                  getDescriptives(pp3, dep.var='RT.90.', attr.name='qRTsError', id.var1='~reps*bin*s', id.var2=NULL))
+  meanAcc <- list(getDescriptives(data3, dep.var='acc', attr.name='AccOverBins', id.var1='~bin*s', id.var2=NULL),
+                  getDescriptives(pp3, dep.var='acc', attr.name='AccOverBins', id.var1='~reps*bin*s', id.var2=NULL))
+  
+  par(mfrow=c(1,3), mar=c(5,4,4,1)+.1)
+  for(subject in unique(q10RTs[[1]]$s)) {
+    idxD <- q10RTs[[1]]$s == subject
+    idxM <- q10RTs[[2]]$s == subject
+    
+    plotDataPPBins(data=meanAcc[[1]][idxD,], pp=meanAcc[[2]][idxM,],
+                   xaxt='s',
+                   dep.var='acc', ylab='Accuracy', xlab = 'Trial bin',
+                   legend.pos='bottomright', ylim=c(0.5, 1), hline.by=0.1)
+    title('Accuracy')
+    
+    plotDataPPBins(data=q10RTs[[1]][idxD,], pp=q10RTs[[2]][idxM,], dep.var='RT.10.', ylim=c(.3, 1.5), xaxt='s', ylab='RT (s)', xlab='Trial bin')
+    plotDataPPBins(data=q50RTs[[1]][idxD,], pp=q50RTs[[2]][idxM,], dep.var='RT.50.', plot.new = FALSE, draw.legend=FALSE)
+    plotDataPPBins(data=q90RTs[[1]][idxD,], pp=q90RTs[[2]][idxM,], dep.var='RT.90.', plot.new = FALSE, draw.legend=FALSE)
+    title('Correct RTs')
+    
+    # some subs didnt make errors in some bin(s) - get idx again..
+    idxD <- q10RTsE[[1]]$s == subject
+    idxM <- q10RTsE[[2]]$s == subject
+    plotDataPPBins(data=q10RTsE[[1]][idxD,], pp=q10RTsE[[2]][idxM,], dep.var='RT.10.', ylim=c(.3, 1.5), xaxt='s', ylab='RT (s)', xlab='Trial bin')
+    plotDataPPBins(data=q50RTsE[[1]][idxD,], pp=q50RTsE[[2]][idxM,], dep.var='RT.50.', plot.new = FALSE, draw.legend=FALSE)
+    plotDataPPBins(data=q90RTsE[[1]][idxD,], pp=q90RTsE[[2]][idxM,], dep.var='RT.90.', plot.new = FALSE, draw.legend=FALSE)
+    title('Error RTs')
+    title(paste0('Subject ', subject), outer=TRUE)
+  }
+}
+
+runDiagnostics <- function(fn, dat, samples=NULL, nCores=30, verbose=TRUE, chainsFileType='jpeg',
+                           plotChains=TRUE, plotPosteriorPriors=TRUE, calculateESS=TRUE, plotFits=TRUE, calculateParametersBPIC=TRUE) {
+  if(is.null(samples)) samples <- loadSamples(fn, samplesDir='samples')
+  
+  saveDir <- file.path('diagnostics', fn)
+  dir.create(saveDir, showWarnings = FALSE)
+  if(chainsFileType == 'jpeg') dir.create(file.path(saveDir, 'chains'), showWarnings = FALSE)
+
+  # Chains: Plot hyper, append Gelman's
+  if(plotChains) {
+    if(verbose) print('Plotting chains...')
+    gms <- h.gelman.diag.dmc(samples)
+    if(chainsFileType == 'pdf') {
+      pdf(file=file.path(saveDir, 'chains.pdf'))
+    } else {
+      jpeg(filename=file.path(saveDir, 'chains', 'chains-%03d.jpeg'), width=7, height=7, units='in', quality=100, res=200)
+    }
+    par(mpg=c(1,1,0), mar=c(4,3,3,1)+.1, oma=c(0,0,1,0), mfrow=c(4,4))
+    plot.dmc(samples, hyper=TRUE, layout=c(4,4))
+    title(paste0('Hyper, Gelmans diag = ', round(gms['hyper'], 4)), outer=TRUE, line=0)
+    
+    # Chains: Plot per participant, append Gelman's
+    for(subject in names(samples)) {
+      plot.dmc(samples, subject=subject, layout=c(4,4)); 
+      title(paste0('Subject ', subject, ' Gelmans diag = ', round(gms[which(names(gms)==as.character(subject))], 4)), outer=TRUE, line=0)
+    }
+    
+    
+    dev.off()
   }
   
-  # empty canvas
-  if(plot.new) {
-    plot(0,0, type='n', xlim=xlim, ylim=ylim, xlab=xaxis, ylab=dep.var)
-    abline(h=seq(0, 5, .1), col='grey', lty=2)
+  # Posterior vs Prior
+  if(plotPosteriorPriors) {
+    if(!grepl('softmax', fn)) {
+      pdf(file=file.path(saveDir, 'posteriorPrior.pdf'))
+      if(verbose) print('Plotting posterior vs prior...')
+      par(mpg=c(1,1,0), mar=c(4,3,3,1)+.1, oma=c(0,0,1,0), mfrow=c(4,4))
+      plot.dmc(samples, hyper=TRUE, p.prior = attr(samples, 'hyper')$pp.prior, layout=c(4,4))
+      for(subject in names(samples)) {
+        plot.dmc(samples, subject=subject, p.prior = samples[[subject]]$p.prior, layout=c(4,4))
+        title(paste0('Subject ', subject, ' Gelmans diag = ', round(gms[which(names(gms)==as.character(subject))], 4)), outer=TRUE, line=0)
+      } 
+      dev.off()
+    } else {
+      warning('Skipping posterior vs prior plot, this crashes for softmax... (too few parameters?)')
+    }
   }
   
-  if(draw.polygon) {
-    lowerQ <- aggregate(as.formula(paste0(dep.var, '~', xaxis)), pp, quantile, .025)
-    upperQ <- aggregate(as.formula(paste0(dep.var, '~', xaxis)), pp, quantile, .975)
-    xs <- c(lowerQ[,xaxis], rev(lowerQ[,xaxis]))
-    ys <- c(lowerQ[,dep.var], rev(upperQ[,dep.var]))
-    polygon(xs, ys, col=rgb(col2rgb('blue')[1]/255, col2rgb('blue')[2]/255, col2rgb('blue')[3]/255, alpha=.3), lty = NULL, border=NA)
+  # Effective sample size: save to csv
+  if(calculateESS) {
+    if(verbose) print('Calculating effective samples sizes...')
+    effS <- data.frame(do.call(rbind, effectiveSize.dmc(samples)))
+    effSH <- effectiveSize.dmc(samples, hyper=TRUE)
+    effS <- rbind(effS, effSH[grepl('.h1', names(effSH))])
+    effS <- rbind(effS, effSH[grepl('.h2', names(effSH))])
+    effS <- rbind(effS, apply(effS, 2, min))
+    row.names(effS) <- c(row.names(effS)[1:(nrow(effS)-3)], 'h1', 'h2', 'minimum')
+    write.csv(effS, file=file.path(saveDir, 'effectiveSizes.csv'))
   }
   
-  # model
-  points(pp[,xaxis], pp[,dep.var], pch=20, col=colorM, cex=.01)
+  # Fits
+  if(plotFits) {
+    if(verbose) print('Plotting posterior predictives...')
+    pdf(file=file.path(saveDir, 'posteriorPredictives.pdf'))
+    plotFits(samples, dat, nCores)
+    dev.off()
+  }
   
-  # data
-  points(data[,xaxis], data[,dep.var], col=colorD, pch=20, cex=2)
-  lines(data[,xaxis], data[,dep.var], col=colorD, lwd=2)
-  
-  if(!draw.polygon) {
-    if(draw.legend) legend('topright', c('Data', 'Model'), lty=c(1, NA), lwd=c(2, 2), col=c(colorD,colorM), pch=c(20, 20), bty='n')
-  } else {
-    if(draw.legend) legend('topright', c('Data', 'Model'), lty=c(1, NA), 
-                           fill=c(NA, rgb(col2rgb('blue')[1]/255, col2rgb('blue')[2]/255, col2rgb('blue')[3]/255, alpha=.3)),
-                           border=c(NA, 'black'),
-                           lwd=c(2, NA), col=c(colorD,colorM), pch=c(20, NA), bty='n')
+  # Parameters: save to csv, append BPIC per participant
+  if(calculateParametersBPIC) {
+    if(verbose) print('Getting parameters, BPIC...')
+    bpics <- h.IC.dmc(samples)
+    summ <- summary.dmc(samples)
+    medians <- data.frame(do.call(rbind, lapply(summ, function(x) x$quantiles[,3])))
+    medians$aV <- pnorm(medians$aV)
+    medians <- rbind(medians, apply(medians, 2, mean))
+    medians <- rbind(medians, apply(medians, 2, sd))
+    
+    medians$minimum.deviances <- c(bpics[,1], sum(bpics[,1]), NA)
+    medians$BPIC <- c(bpics[,2], sum(bpics[,2]), NA)
+    row.names(medians) <- c(row.names(medians)[1:(nrow(medians)-2)], 'mean/sum', 'sd')
+    write.csv(medians, file=file.path(saveDir, 'medianParametersBPICs.csv'))
   }
 }
 
@@ -581,11 +704,27 @@ h.pp.summary <- function(sim, samples, dat=NULL, ignore.subjects=FALSE,
   }
   
   if(!ignore.subjects) {
-    out = lapply(1:length(sim), function(x) pp.summary(sim=sim[[x]], samples=samples[[x]], dat=dat[[x]],
-                                                       n.post=n.post,probs=probs,bw=bw,
-                                                       factors=factors,save.simulation=save.simulation,gglist=FALSE,
-                                                       adapt=adapt,
-                                                       save.simulation.as.attribute=FALSE,ignore.R2=ignore.R2,censor=censor))
+    if(cores == 1) {
+      out = lapply(1:length(sim), function(x) pp.summary(sim=sim[[x]], samples=samples[[x]], dat=dat[[x]],
+                                                         n.post=n.post,probs=probs,bw=bw,
+                                                         factors=factors,save.simulation=save.simulation,gglist=FALSE,
+                                                         adapt=adapt,
+                                                         save.simulation.as.attribute=FALSE,ignore.R2=ignore.R2,censor=censor))
+    } else if(cores > 1) {
+      if(!sfIsRunning()) {
+        sfInit(parallel = TRUE, cpus=cores)
+        wasRunning = TRUE
+      } else {
+        wasRunning = FALSE
+      }
+      sfExport('pp.summary', 'get.dqp')
+      out = sfLapply(1:length(sim), function(x) pp.summary(sim=sim[[x]], samples=samples[[x]], dat=dat[[x]],
+                                                         n.post=n.post,probs=probs,bw=bw,
+                                                         factors=factors,save.simulation=save.simulation,gglist=FALSE,
+                                                         adapt=adapt,
+                                                         save.simulation.as.attribute=FALSE,ignore.R2=ignore.R2,censor=censor))
+      if(!wasRunning) sfStop()
+    }
     names(out) <- names(sim)
     sim <- do.call(rbind, sim)
     dat <- do.call(rbind, dat)
@@ -632,4 +771,31 @@ h.pp.summary <- function(sim, samples, dat=NULL, ignore.subjects=FALSE,
                                                       quantiles.to.get = probs.gglist, CI= CI.gglist)
   attr(out,"av") <- av
   out
+}
+
+
+
+loadSamples <- function(fn, samplesDir=NULL) {
+  if(!is.null(samplesDir)) fn <- file.path(samplesDir, fn)
+  fnExt <- paste0(fn, '.RData')
+  load(fnExt)
+  return(hsamples)
+  # fnAutoConverge <- gsub('.RData', '_autoconverge.RData', fnExt)
+  # hasLoaded <- FALSE
+  # if(file.exists(fnAutoConverge)) {
+  #   if(file.info(fnAutoConverge)$mtime > file.info(fnExt)$mtime) {
+  #     warning('Autoconverge is newest samples available. Sampling probably hasn\'t finished yet')
+  #     load(fnAutoConverge)
+  #     loadFinal <- TRUE
+  #   }}
+  # if(!hasLoaded) {
+  #   load(fnExt)
+  #   if('samples' %in% ls()) {
+  #     print('Loaded final samples')
+  #   } else {
+  #     warning('samples not found, only burn found...')
+  #     return(burn1)
+  #   }
+  # }
+  # return(samples)
 }

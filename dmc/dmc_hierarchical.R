@@ -2006,7 +2006,7 @@ h.RUN.dmc <- function(hsamples,
       hsamples <- h.run.dmc(samples=hsamples,report=report,cores=cores,
                             gamma.mult=gamma.mult,h.gamma.mult=h.gamma.mult,
                             p.migrate=p.migrate,h.p.migrate=h.p.migrate)
-      if(!is.null(saveFn)) save(hsamples, file=paste0(saveFn, '.Rdata'))
+      if(!is.null(saveFn)) save(hsamples, file=paste0(saveFn, '.RData'))
     } else do.migrate=0 # Samples already good, just want more.
     
     if ( !force && !is.null(attr(hsamples,"auto")) && 
@@ -2093,7 +2093,7 @@ h.RUN.dmc <- function(hsamples,
                               h.gamma.mult=h.gamma.mult,
                               p.migrate=p.migrate*do.migrate)
       }
-      if(!is.null(saveFn)) save(hsamples, file=paste0(saveFn, '.Rdata'))
+      if(!is.null(saveFn)) save(hsamples, file=paste0(saveFn, '.RData'))
       
       # Give up?
       n.try <- n.try + 1

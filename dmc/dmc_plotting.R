@@ -357,12 +357,15 @@ plot.pp.dmc <- function(pp,style="pdf",layout=NULL,no.layout=FALSE,
                         model.legend=TRUE,
                         show.fit=TRUE,show.fits=TRUE,x.min.max=NA,ylim=NA,
                         show.response=NA,
+                        add.legend=TRUE,
                         ltys=NA,lwds=NA,mar=c(4,5,3,0),
                         do.main=TRUE, # Put cell name in main not legend
                         xlab="RT (s)",
+                        xaxt='s',
                         fits.lines=FALSE,fits.lcol="grey",
                         fit.points=TRUE,fits.pch=16,fits.pcol="grey",
-                        data.col="black",data.lwd.mult=3)
+                        data.col="black",data.lwd.mult=3,
+                        axhlines=0, axvlines=0)
   # pdf or cdf of data and posterior predictive fits
   # Show response is a vector of integers in 1:n.resp of which resposnes to show, 
   # if NA shows all 
@@ -372,7 +375,7 @@ plot.pp.dmc <- function(pp,style="pdf",layout=NULL,no.layout=FALSE,
                        show.fits,dname,mname,model.legend,lgnd,
                        n.resp,show.response,ltys,lwds,data.col,data.lwd.mult,
                        xlab.cdf,ylab.cdf,do.main,fit.points,fits.pch,fits.pcol,
-                       fits.lines,fits.lcol) 
+                       fits.lines,fits.lcol,xaxt,axhlines,axvlines) 
   {
     
     no.facs <- class(try(pp[[data.style]][1][[1]][[2]],silent=TRUE))=="try-error"
@@ -426,7 +429,7 @@ plot.pp.dmc <- function(pp,style="pdf",layout=NULL,no.layout=FALSE,
             xy.dat <- pp[[data.style]][i][[1]][[ok.n[j]]]
           }
           if ( j == show.response[1] ) 
-            plot(xy,main=main,ylim=ylim,xlim=xlim,xlab=xlab,ylab="Density") else
+            plot(xy,main=main,ylim=ylim,xlim=xlim,xlab=xlab,ylab="Density",xaxt=xaxt) else
               lines(xy,lty=ltys[j],lwd=lwds[j])
           lines(xy.dat,lty=ltys[j],lwd=lwds[j]*data.lwd.mult,col=data.col)
         }
@@ -453,13 +456,24 @@ plot.pp.dmc <- function(pp,style="pdf",layout=NULL,no.layout=FALSE,
             }
           }
         }
+        
+        # if (!any(is.na(x.min.max))) {
+        #   if (x.min.max[1]>xlim[1]) xlim[1] <- x.min.max[1]
+        #   if (x.min.max[2]<xlim[2]) xlim[2] <- x.min.max[2]
+        # }
+        ## SM: always override defaults
         if (!any(is.na(x.min.max))) {
-          if (x.min.max[1]>xlim[1]) xlim[1] <- x.min.max[1]
-          if (x.min.max[2]<xlim[2]) xlim[2] <- x.min.max[2]
+          xlim[1] <- x.min.max[1]
+          xlim[2] <- x.min.max[2]
         }
+        
         for (j in inj) {
-          if (j == inj[1]) plot(NA,NA,main=main,type="l",ylim=ylim,xlim=xlim,
+          if (j == inj[1]) plot(NA,NA,main=main,type="l",ylim=ylim,xlim=xlim,xaxt=xaxt,
             xlab=xlab,ylab="Probability")
+          ## SM add some lines
+          if(length(axhlines) > 1) abline(h=axhlines, col='lightgrey', lty=1)
+          if(length(axvlines) > 1) abline(v=axvlines, col='lightgrey', lty=1)
+          
           # Draw uncertianty lines
           if ( fits.lines && show.fits && !is.null(attr(pp,"dpqs")) ) for (k in 1:length(attr(pp,"dpqs"))) {
             ppk <- attr(pp,"dpqs")[[k]]
@@ -553,7 +567,7 @@ plot.pp.dmc <- function(pp,style="pdf",layout=NULL,no.layout=FALSE,
   plot.one(pp,style,data.style,pos,x.min.max,ylim,show.fits,
     dname,mname,model.legend,lgnd,n.resp,show.response,ltys,lwds,
     data.col,data.lwd.mult,xlab.cdf,ylab.cdf,do.main,fit.points,fits.pch,
-    fits.pcol,fits.lines,fits.lcol)
+    fits.pcol,fits.lines,fits.lcol,xaxt=xaxt,axhlines=axhlines,axvlines=axvlines)
 }
 
 acf.dmc <- function(samples,par=NA,chain=1,lag.max=NULL,hyper=FALSE,plot=TRUE,...)

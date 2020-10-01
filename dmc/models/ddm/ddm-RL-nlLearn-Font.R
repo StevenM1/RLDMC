@@ -10,7 +10,7 @@ library(dmcAdapt)
 transform.dmc <- function(par.df,do.trans=TRUE) 
 {
   par.df$aV = t(pnorm(t(par.df$aV)))
-  par.df$SR = t(pnorm(t(par.df$SR)))
+#  par.df$SR = t(pnorm(t(par.df$SR)))
   par.df$d <- par.df$d*par.df$t0  # proportional to t0, bounded -1 to 1
 
   # par.df[,c("a","v","t0","z","d","sz","sv","st0")]
@@ -26,6 +26,7 @@ transform.dmc <- function(par.df,do.trans=TRUE)
            sv=t(par.df$sv),
            st0=t(par.df$st0),
            aV=t(par.df$aV),
+           pw=t(par.df$pw),
            SR=t(par.df$SR)))
   } else {
     return(
@@ -38,6 +39,7 @@ transform.dmc <- function(par.df,do.trans=TRUE)
            sv=par.df$sv,
            st0=par.df$st0,
            aV=par.df$aV,
+           pw=tpar.df$pw,
            SR=par.df$SR))
   }
 }
@@ -46,10 +48,13 @@ transform2.dmc <- function(pars, cvs, choiceIdx) {
   ### SM
   
   # Create start point vector
-  startValues <- rep(pars[1,,'SR'], each=2, times=ncol(cvs))
+  startValues <- rep(pars[1,,'SR']^pars[1,1,'pw'], each=2, times=ncol(cvs))
   
   # learning rates matrix
   learningRates <- matrix(rep(pars[1,,'aV'], each=ncol(cvs)), ncol=ncol(cvs), byrow=TRUE)
+  
+  # utility as power-function of feedback
+  cvs <- cvs^pars[1,1,'pw']
   
   # call C
   updated <- adapt.c.dmc(startValues = startValues, 

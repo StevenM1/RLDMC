@@ -10,35 +10,28 @@ library(dmcAdapt)
 transform.dmc <- function(par.df,do.trans=TRUE) 
 {
   par.df$aV = t(pnorm(t(par.df$aV)))
-  par.df$SR = t(pnorm(t(par.df$SR)))
-  par.df$d <- par.df$d*par.df$t0  # proportional to t0, bounded -1 to 1
-
-  # par.df[,c("a","v","t0","z","d","sz","sv","st0")]
   
   if (do.trans) {
     return(
-      list(a=t(par.df$a),
-           m=t(par.df$m),
+      list(A=t(par.df$A),
+           s=t(par.df$s),
            t0=t(par.df$t0),
-           z=t(par.df$z),
-           d=t(par.df$d),
-           sz=t(par.df$sz),
-           sv=t(par.df$sv),
            st0=t(par.df$st0),
+           B0=t(par.df$B0),
+           SR=t(par.df$SR),
            aV=t(par.df$aV),
-           SR=t(par.df$SR)))
+           V0=t(par.df$V0),
+           wB=t(par.df$wB),
+           wV=t(par.df$wV)))
   } else {
     return(
-      list(a=par.df$a,
-           m=par.df$m,
-           t0=par.df$t0,
-           z=par.df$z,
-           d=par.df$d,
-           sz=par.df$sz,
-           sv=par.df$sv,
-           st0=par.df$st0,
+      list(A=par.df$A,s=par.df$s,t0=par.df$t0,st0=par.df$st0,
+           B0=par.df$B0,
+           SR=par.df$SR,
            aV=par.df$aV,
-           SR=par.df$SR))
+           V0=par.df$V0,
+           wB=par.df$wB,
+           wV=par.df$wV))
   }
 }
 
@@ -60,12 +53,15 @@ transform2.dmc <- function(pars, cvs, choiceIdx) {
   # add back data to 'pars' array
   pars[,,'SR'] <- matrix(updated$adaptedValues[choiceIdx], ncol=2, byrow=FALSE)
   
-  # ## probabilities per trial
-  # PP <- t(exp(pars[,,'SR']*pars[,,'beta']))
-  # PP <- PP/apply(PP, 1, sum)
-  v = pars[1,,'m'] * (pars[1,,'SR']-pars[2,,'SR'])
+  # Determine parameter mean_v
+  mean_v <- cbind(pars[1,,"V0"] + pars[1,,"wV"]*(pars[2,,"SR"]-pars[1,,"SR"]),
+                  pars[2,,"V0"] + pars[2,,"wV"]*(pars[1,,"SR"]-pars[2,,"SR"]))
   
-  return(list(pars=pars, v=v, updated=updated))
+  # Determine parameter b
+  b <- cbind(pars[1,,"B0"] + pars[1,,"wB"]*(pars[2,,"SR"]), 
+             pars[2,,"B0"] + pars[2,,"wB"]*(pars[1,,"SR"]))
+  
+  return(list(pars=pars, mean_v=mean_v, b=b, updated=updated))
 }
 
 
@@ -78,51 +74,31 @@ random.dmc <- function(p.list,model,save.adapt=TRUE)
   n <- dim(p.list[[1]])[2]  # number of trials
   
   # use row.facs to see if pars need reordering
-  # if(!is.null(attr(cvs, 'row.facs'))) {
-  #   row.facs = attr(cvs, 'row.facs')
-  #   dfColnames <- names(attr(model, 'factors'))
-  #   if('.' %in% row.facs[1]) {
-  #     cues = sub('s1.', '', row.facs)
-  #     newOrder = match(cues, attr(p.list, 'facs')$cue)
-  #   } else {
-  #     newOrder = match(row.facs, attr(p.list, 'facs')$S)
-  #   }
-  #   pars <- pars[,newOrder,]
-  # }
-  # 
-  # # re-generate choice idx (couldn't be passed...)
-  # choiceIdx <- apply(cvs, 1, function(x) which(!is.na(x)))
-  # choiceIdx <- ifelse(choiceIdx%%2==0, choiceIdx-1, choiceIdx)
-  # choiceIdx <- rep(choiceIdx, each=2)
-  # choiceIdx[seq(2,length(choiceIdx),2)] = choiceIdx[seq(2,length(choiceIdx),2)]+1
-  # choiceIdx <- cbind(rep(1:(length(choiceIdx)/2),each=2), choiceIdx)
-  # 
-  
-  # use row.facs to see if pars need reordering
   if(!is.null(attr(cvs, 'row.facs'))) {
     row.facs = attr(cvs, 'row.facs')
-    newOrder = match(row.facs, apply(attr(p.list, 'facs'), 1, paste, collapse='.'))
+    dfColnames <- names(attr(model, 'factors'))
+    if('.' %in% row.facs[1]) {
+      cues = sub('s1.', '', row.facs)
+      newOrder = match(cues, attr(p.list, 'facs')$cue)
+    } else {
+      newOrder = match(row.facs, attr(p.list, 'facs')$S)
+    }
     pars <- pars[,newOrder,]
   }
   
-  
   # re-generate choice idx (couldn't be passed...)
-  if(sum(apply(cvs, 1, function(x) sum(!is.na(x))) > 1)) {
-    # multi-feedback outcomes make it easy to define VVchoiceIdx
-    choiceIdx <- !is.na(cvs)
-    choiceIdx <- which(t(choiceIdx), arr.ind = TRUE)[,2:1]  # Gives for every trial each column that is chosen
-  } else {
-    choiceIdx <- apply(cvs, 1, function(x) which(!is.na(x)))
-    choiceIdx <- ifelse(choiceIdx%%2==0, choiceIdx-1, choiceIdx)
-    choiceIdx <- rep(choiceIdx, each=2)
-    choiceIdx[seq(2,length(choiceIdx),2)] = choiceIdx[seq(2,length(choiceIdx),2)]+1
-    choiceIdx <- cbind(rep(1:(length(choiceIdx)/2),each=2), choiceIdx)
-  }
+  choiceIdx <- apply(cvs, 1, function(x) which(!is.na(x)))
+  choiceIdx <- ifelse(choiceIdx%%2==0, choiceIdx-1, choiceIdx)
+  choiceIdx <- rep(choiceIdx, each=2)
+  choiceIdx[seq(2,length(choiceIdx),2)] = choiceIdx[seq(2,length(choiceIdx),2)]+1
+  choiceIdx <- cbind(rep(1:(length(choiceIdx)/2),each=2), choiceIdx)
+  
   # update
   tmp <- transform2.dmc(pars, cvs, choiceIdx)
+  mean_v = tmp$mean_v
+  b = tmp$b
   pars = tmp$pars
   updated = tmp$updated
-  v = tmp$v
   
   # save
   if(save.adapt) {
@@ -133,46 +109,29 @@ random.dmc <- function(p.list,model,save.adapt=TRUE)
         ii <- which(dimnames(pars)[[3]]==parName)
         adapt[,paste0(parName, '.', accumulatorName)] <- pars[i,,ii]
       }
-      # # add mean_v, b
-      # adapt[,paste0('mean_v.', accumulatorName)] <- mean_v[,i]
-      # adapt[,paste0('b.', accumulatorName)] <- b[,i]
+      # add mean_v, b
+      adapt[,paste0('mean_v.', accumulatorName)] <- mean_v[,i]
+      adapt[,paste0('b.', accumulatorName)] <- b[,i]
     }
-    adapt[,'v'] <- v
     adapt[,'PEs'] <- apply(updated$predictionErrors[,1:(ncol(cvs)-1)], 1, sum, na.rm=TRUE)
   }
   
-  
   # generate random trials
-  # out <- data.frame(RT=rnorm(n, 1000, 1), R=NA)  # generate some random RTs to trick dmc
-  # out$R <- rbinom(n, 1, prob=PP[,1])+1
-  out <- rdiffusion(n=n,
-                    a=pars[1,,'a'],
-                    v=v,
-                    t0=pars[1,,'t0'],
-                    z=pars[1,,'z']*pars[1,,'a'],
-                    sz=pars[1,,'sz']*pars[1,,'a'],
-                    sv=pars[1,,'sv']*abs(v),  # estimate sv as a proportion of (varying) v
-                    d=pars[1,,'d'],
-                    st0=pars[1,,'st0'], s=1, precision=2.5)
+  out <- rWaldRaceSM(n=n,
+                     A=list(pars[1,,'A'], pars[2,,'A']),
+                     v=list(mean_v[,1], mean_v[,2]),
+                     B=list(b[,1], b[,2]),
+                     t0=list(pars[1,,'t0'], pars[2,,'t0']),
+                     st0=0,
+                     s=list(pars[1,,'s'], pars[2,,'s']),
+                     silent=TRUE, simPerTrial=FALSE)
   colnames(out) <- c('RT', 'R')
-  out$R <- as.numeric(out$R) #factor(ifelse(out$R=='upper', 'r2', 'r1'), levels=c('r1', 'r2'))
-  # out$R[out$R=='upper'] <- 'r2'
-  # out$R[out$R=='upper'] <- 'r1'
-  
-  
-  # if(!is.null(attr(cvs, 'row.facs'))) {
-  #   if('.' %in% attr(cvs, 'row.facs')[1]) {
-  #     out$cue <- factor(cues, levels=attr(model,"factors")$cue)
-  #   } else {
-  #     out$S <- factor(row.facs, levels=attr(model,"factors")$S)
-  #   }
-  # }
   
   if(!is.null(attr(cvs, 'row.facs'))) {
-    row.facs = do.call(rbind, strsplit(attr(cvs, 'row.facs'), split='.', fixed=TRUE))
-    facNames <- colnames(attr(p.list, 'facs'))
-    for(i in 1:length(facNames)) {
-      out[,facNames[i]] <- row.facs[,i]
+    if('.' %in% attr(cvs, 'row.facs')[1]) {
+      out$cue <- factor(cues, levels=attr(model,"factors")$cue)
+    } else {
+      out$S <- factor(row.facs, levels=attr(model,"factors")$S)
     }
   }
   
@@ -200,29 +159,18 @@ likelihood.dmc <- function(p.vector,data,min.like=1e-10, use.c=TRUE)
   # update & unpack
   tmp = transform2.dmc(pars, cvs, choiceIdx)
   pars = tmp$pars
-  v = tmp$v
-  
-  bad <- function(p) 
-    # Stops ddiffusion crashing if given bad values.
-  {
-    (p[,'a']<0)      | (p[,'z'] <1e-6) | (p[,'z'] >.999999) | (p[,'t0']<1e-6)  | 
-      (p[,'sz']<0) | (p[,'st0']<0)    | (p[,'sv']<0) |
-      (p[,'sz']>1.999999*min(c(p[,'z'],1-p[,'z'])))
-  }
-  
-#  likes <- rep(min.like, nrow(data))
-  if(any(bad(pars[1,,]))) return(rep(min.like, nrow(data)))
+  mean_v = tmp$mean_v
+  b = tmp$b
   
   # likelihood
-  pmax(ddiffusion(rt=data$RT, response=as.numeric(data$R),
-                  a=pars[1,,'a'],
-                  v=v,
-                  t0=pars[1,,'t0'],
-                  z=pars[1,,'z']*pars[1,,'a'],
-                  sz=pars[1,,'sz']*pars[1,,'a'],
-                  sv=pars[1,,'sv']*abs(v),  # estimate sv as a proportion of (varying) v
-                  d=pars[1,,'d'],
-                  st0=pars[1,,'st0'], s=1, precision=2.5), min.like, na.rm=TRUE)
+  pmax(dWaldRace(rt=data$RT, response=data$R,
+                 A=list(pars[1,,'A'], pars[2,,'A']),
+                 v=list(mean_v[,1], mean_v[,2]),
+                 B=list(b[,1], b[,2]),
+                 t0=list(pars[1,,'t0'], pars[2,,'t0']),
+                 st0=pars[1,1,'st0'],
+                 s=list(pars[1,,'s'], pars[2,,'s']),
+                 silent=TRUE), min.like, na.rm=TRUE)
 }
 
 

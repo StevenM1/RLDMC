@@ -10,9 +10,11 @@ library(dmcAdapt)
 transform.dmc <- function(par.df,do.trans=TRUE) 
 {
   par.df$aV = t(pnorm(t(par.df$aV)))
-  par.df$SR = t(pnorm(t(par.df$SR)))
+#  par.df$SR = t(pnorm(t(par.df$SR)))
   par.df$d <- par.df$d*par.df$t0  # proportional to t0, bounded -1 to 1
-
+  
+  
+  
   # par.df[,c("a","v","t0","z","d","sz","sv","st0")]
   
   if (do.trans) {
@@ -26,7 +28,8 @@ transform.dmc <- function(par.df,do.trans=TRUE)
            sv=t(par.df$sv),
            st0=t(par.df$st0),
            aV=t(par.df$aV),
-           SR=t(par.df$SR)))
+           SR=t(par.df$SR),
+           vmax=t(par.df$vmax)))
   } else {
     return(
       list(a=par.df$a,
@@ -38,7 +41,8 @@ transform.dmc <- function(par.df,do.trans=TRUE)
            sv=par.df$sv,
            st0=par.df$st0,
            aV=par.df$aV,
-           SR=par.df$SR))
+           SR=par.df$SR,
+           vmax=par.df$vmax))
   }
 }
 
@@ -63,7 +67,9 @@ transform2.dmc <- function(pars, cvs, choiceIdx) {
   # ## probabilities per trial
   # PP <- t(exp(pars[,,'SR']*pars[,,'beta']))
   # PP <- PP/apply(PP, 1, sum)
-  v = pars[1,,'m'] * (pars[1,,'SR']-pars[2,,'SR'])
+  value_difference = (pars[1,,'SR']-pars[2,,'SR'])
+  v = (2*pars[1,,'vmax'])/(1+exp(-pars[1,,'m']*value_difference)) - pars[1,,'vmax']
+  # v = pars[1,,'m'] * (pars[1,,'SR']-pars[2,,'SR'])
   
   return(list(pars=pars, v=v, updated=updated))
 }
@@ -78,34 +84,24 @@ random.dmc <- function(p.list,model,save.adapt=TRUE)
   n <- dim(p.list[[1]])[2]  # number of trials
   
   # use row.facs to see if pars need reordering
-  # if(!is.null(attr(cvs, 'row.facs'))) {
-  #   row.facs = attr(cvs, 'row.facs')
-  #   dfColnames <- names(attr(model, 'factors'))
-  #   if('.' %in% row.facs[1]) {
-  #     cues = sub('s1.', '', row.facs)
-  #     newOrder = match(cues, attr(p.list, 'facs')$cue)
-  #   } else {
-  #     newOrder = match(row.facs, attr(p.list, 'facs')$S)
-  #   }
-  #   pars <- pars[,newOrder,]
-  # }
-  # 
+  if(!is.null(attr(cvs, 'row.facs'))) {
+    row.facs = attr(cvs, 'row.facs')
+    dfColnames <- names(attr(model, 'factors'))
+    if('.' %in% row.facs[1]) {
+      cues = sub('s1.', '', row.facs)
+      newOrder = match(cues, attr(p.list, 'facs')$cue)
+    } else {
+      newOrder = match(row.facs, attr(p.list, 'facs')$S)
+    }
+    pars <- pars[,newOrder,]
+  }
+  
   # # re-generate choice idx (couldn't be passed...)
   # choiceIdx <- apply(cvs, 1, function(x) which(!is.na(x)))
   # choiceIdx <- ifelse(choiceIdx%%2==0, choiceIdx-1, choiceIdx)
   # choiceIdx <- rep(choiceIdx, each=2)
   # choiceIdx[seq(2,length(choiceIdx),2)] = choiceIdx[seq(2,length(choiceIdx),2)]+1
   # choiceIdx <- cbind(rep(1:(length(choiceIdx)/2),each=2), choiceIdx)
-  # 
-  
-  # use row.facs to see if pars need reordering
-  if(!is.null(attr(cvs, 'row.facs'))) {
-    row.facs = attr(cvs, 'row.facs')
-    newOrder = match(row.facs, apply(attr(p.list, 'facs'), 1, paste, collapse='.'))
-    pars <- pars[,newOrder,]
-  }
-  
-  
   # re-generate choice idx (couldn't be passed...)
   if(sum(apply(cvs, 1, function(x) sum(!is.na(x))) > 1)) {
     # multi-feedback outcomes make it easy to define VVchoiceIdx
@@ -117,7 +113,7 @@ random.dmc <- function(p.list,model,save.adapt=TRUE)
     choiceIdx <- rep(choiceIdx, each=2)
     choiceIdx[seq(2,length(choiceIdx),2)] = choiceIdx[seq(2,length(choiceIdx),2)]+1
     choiceIdx <- cbind(rep(1:(length(choiceIdx)/2),each=2), choiceIdx)
-  }
+  }  
   # update
   tmp <- transform2.dmc(pars, cvs, choiceIdx)
   pars = tmp$pars
@@ -151,7 +147,7 @@ random.dmc <- function(p.list,model,save.adapt=TRUE)
                     t0=pars[1,,'t0'],
                     z=pars[1,,'z']*pars[1,,'a'],
                     sz=pars[1,,'sz']*pars[1,,'a'],
-                    sv=pars[1,,'sv']*abs(v),  # estimate sv as a proportion of (varying) v
+                    sv=pars[1,,'sv'],
                     d=pars[1,,'d'],
                     st0=pars[1,,'st0'], s=1, precision=2.5)
   colnames(out) <- c('RT', 'R')
@@ -160,19 +156,11 @@ random.dmc <- function(p.list,model,save.adapt=TRUE)
   # out$R[out$R=='upper'] <- 'r1'
   
   
-  # if(!is.null(attr(cvs, 'row.facs'))) {
-  #   if('.' %in% attr(cvs, 'row.facs')[1]) {
-  #     out$cue <- factor(cues, levels=attr(model,"factors")$cue)
-  #   } else {
-  #     out$S <- factor(row.facs, levels=attr(model,"factors")$S)
-  #   }
-  # }
-  
   if(!is.null(attr(cvs, 'row.facs'))) {
-    row.facs = do.call(rbind, strsplit(attr(cvs, 'row.facs'), split='.', fixed=TRUE))
-    facNames <- colnames(attr(p.list, 'facs'))
-    for(i in 1:length(facNames)) {
-      out[,facNames[i]] <- row.facs[,i]
+    if('.' %in% attr(cvs, 'row.facs')[1]) {
+      out$cue <- factor(cues, levels=attr(model,"factors")$cue)
+    } else {
+      out$S <- factor(row.facs, levels=attr(model,"factors")$S)
     }
   }
   
@@ -210,7 +198,7 @@ likelihood.dmc <- function(p.vector,data,min.like=1e-10, use.c=TRUE)
       (p[,'sz']>1.999999*min(c(p[,'z'],1-p[,'z'])))
   }
   
-#  likes <- rep(min.like, nrow(data))
+  #  likes <- rep(min.like, nrow(data))
   if(any(bad(pars[1,,]))) return(rep(min.like, nrow(data)))
   
   # likelihood
@@ -220,7 +208,7 @@ likelihood.dmc <- function(p.vector,data,min.like=1e-10, use.c=TRUE)
                   t0=pars[1,,'t0'],
                   z=pars[1,,'z']*pars[1,,'a'],
                   sz=pars[1,,'sz']*pars[1,,'a'],
-                  sv=pars[1,,'sv']*abs(v),  # estimate sv as a proportion of (varying) v
+                  sv=pars[1,,'sv'],
                   d=pars[1,,'d'],
                   st0=pars[1,,'st0'], s=1, precision=2.5), min.like, na.rm=TRUE)
 }

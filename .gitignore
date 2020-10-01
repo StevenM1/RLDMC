@@ -1,9 +1,15 @@
 # Don't sync these - too much data
 samples
-samplesNew
 plots
 old\ stuff
 old stuff
+RLDMC.Rproj
+figures
+develop
+diagnostics
+data
+parameterRecoveries/samples
+output_files
 
 # History files
 .Rhistory
@@ -44,3 +50,7 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# SM
+.DS_Store
+.ipynb_checkpoints/

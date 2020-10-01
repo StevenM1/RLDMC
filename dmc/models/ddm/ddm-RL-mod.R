@@ -24,6 +24,8 @@ transform.dmc <- function(par.df,do.trans=TRUE)
            d=t(par.df$d),
            sz=t(par.df$sz),
            sv=t(par.df$sv),
+           driftMod=t(par.df$driftMod),
+           aMod=t(par.df$aMod),
            st0=t(par.df$st0),
            aV=t(par.df$aV),
            SR=t(par.df$SR)))
@@ -36,6 +38,8 @@ transform.dmc <- function(par.df,do.trans=TRUE)
            d=par.df$d,
            sz=par.df$sz,
            sv=par.df$sv,
+           driftMod=par.df$driftMod,
+           aMod=par.df$aMod,
            st0=par.df$st0,
            aV=par.df$aV,
            SR=par.df$SR))
@@ -63,9 +67,11 @@ transform2.dmc <- function(pars, cvs, choiceIdx) {
   # ## probabilities per trial
   # PP <- t(exp(pars[,,'SR']*pars[,,'beta']))
   # PP <- PP/apply(PP, 1, sum)
-  v = pars[1,,'m'] * (pars[1,,'SR']-pars[2,,'SR'])
+  v = (1+pars[1,,'driftMod'])*(pars[1,,'m'] * (pars[1,,'SR']-pars[2,,'SR']))
   
-  return(list(pars=pars, v=v, updated=updated))
+  a = (1+pars[1,,'aMod'])*pars[1,,'a']
+  
+  return(list(pars=pars, v=v, updated=updated, a=a))
 }
 
 
@@ -123,6 +129,7 @@ random.dmc <- function(p.list,model,save.adapt=TRUE)
   pars = tmp$pars
   updated = tmp$updated
   v = tmp$v
+  a = tmp$a
   
   # save
   if(save.adapt) {
@@ -146,11 +153,11 @@ random.dmc <- function(p.list,model,save.adapt=TRUE)
   # out <- data.frame(RT=rnorm(n, 1000, 1), R=NA)  # generate some random RTs to trick dmc
   # out$R <- rbinom(n, 1, prob=PP[,1])+1
   out <- rdiffusion(n=n,
-                    a=pars[1,,'a'],
+                    a=a, #pars[1,,'a'],
                     v=v,
                     t0=pars[1,,'t0'],
-                    z=pars[1,,'z']*pars[1,,'a'],
-                    sz=pars[1,,'sz']*pars[1,,'a'],
+                    z=pars[1,,'z']*a,
+                    sz=pars[1,,'sz']*a,
                     sv=pars[1,,'sv']*abs(v),  # estimate sv as a proportion of (varying) v
                     d=pars[1,,'d'],
                     st0=pars[1,,'st0'], s=1, precision=2.5)
@@ -201,6 +208,7 @@ likelihood.dmc <- function(p.vector,data,min.like=1e-10, use.c=TRUE)
   tmp = transform2.dmc(pars, cvs, choiceIdx)
   pars = tmp$pars
   v = tmp$v
+  a = tmp$a
   
   bad <- function(p) 
     # Stops ddiffusion crashing if given bad values.
@@ -215,11 +223,11 @@ likelihood.dmc <- function(p.vector,data,min.like=1e-10, use.c=TRUE)
   
   # likelihood
   pmax(ddiffusion(rt=data$RT, response=as.numeric(data$R),
-                  a=pars[1,,'a'],
+                  a=a, #pars[1,,'a'],
                   v=v,
                   t0=pars[1,,'t0'],
-                  z=pars[1,,'z']*pars[1,,'a'],
-                  sz=pars[1,,'sz']*pars[1,,'a'],
+                  z=pars[1,,'z']*a,
+                  sz=pars[1,,'sz']*a,
                   sv=pars[1,,'sv']*abs(v),  # estimate sv as a proportion of (varying) v
                   d=pars[1,,'d'],
                   st0=pars[1,,'st0'], s=1, precision=2.5), min.like, na.rm=TRUE)
