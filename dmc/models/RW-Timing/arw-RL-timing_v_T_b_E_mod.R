@@ -4,73 +4,81 @@ library(dmcAdapt)
 #   External parameters types: A, B, t0, mean_v, sd_v, st0 = 0 (optional)
 #   Internal parameters types: A, b, t0, mean_v, sd_v, st0 = 0 (optional)
 
-# This ncl (no cell likelihood) version uses p.list.dmc in the likelihood to 
+# This ncl (no cell likelihood) version uses p.list.dmc in the likelihood to
 # avoid looping over design cells.
 
-transform.dmc <- function(par.df,do.trans=TRUE) 
+transform.dmc <- function(par.df,do.trans=TRUE)
 {
-  par.df$aB[(par.df$aB == Inf) | (par.df$aB == -Inf)] = par.df$aV[(par.df$aB == Inf) | (par.df$aB == -Inf)]
   par.df$aV = t(pnorm(t(par.df$aV)))
-  par.df$aB = t(pnorm(t(par.df$aB)))
+  par.df$SR = t(pnorm(t(par.df$SR)))
   
   if (do.trans) {
     return(
       list(A=t(par.df$A),
            s=t(par.df$s),
+           s_T=t(par.df$s_T),
            t0=t(par.df$t0),
+           t0T=t(par.df$t0T),
            st0=t(par.df$st0),
            B0=t(par.df$B0),
+           B_T = t(par.df$B_T),
            SR=t(par.df$SR),
            aV=t(par.df$aV),
+           v_T_mod = t(par.df$v_T_mod),
+           b_E_mod = t(par.df$b_E_mod),
            V0=t(par.df$V0),
            wV=t(par.df$wV),
-           SB=t(par.df$SB),   # start point of "B"-learning
-           aB=t(par.df$aB),   # learning rate of "B"-learning
-           wB=t(par.df$wB)))  # weight
+           wS=t(par.df$wS),
+           v_T = t(par.df$v_T)))
   } else {
     return(
-      list(A=par.df$A,s=par.df$s,t0=par.df$t0,st0=par.df$st0,
+      list(A=par.df$A,
+           s=par.df$s,
+           s_T=par.df$s_T,
+           t0=par.df$t0,
+           t0T=par.df$t0T,
+           st0=par.df$st0,
            B0=par.df$B0,
+           B_T = par.df$B_T,
+           v_T_mod = par.df$v_T_mod,
+           b_E_mod = par.df$b_E_mod,
            SR=par.df$SR,
            aV=par.df$aV,
            V0=par.df$V0,
            wV=par.df$wV,
-           SB=par.df$SB,   # start point of "B"-learning
-           aB=par.df$aB,
-           wB=par.df$wB))
+           wS=par.df$wS,
+           v_T = par.df$v_T))
   }
 }
 
 transform2.dmc <- function(pars, cvs, choiceIdx) {
   ### SM
-  ## Assumes the *LAST* column of cvs are the rewards!
   
   # Create start point vector
-  startValues <- c(rep(pars[1,,'SR'], each=2, times=ncol(cvs)-1), pars[1,,'SB'])
+  startValues <- rep(pars[1,,'SR'], each=2, times=ncol(cvs))
   
   # learning rates matrix
-  learningRates <- matrix(rep(pars[1,,'aV'], each=ncol(cvs)-1), ncol=ncol(cvs)-1, byrow=TRUE)
-  learningRates <- cbind(learningRates, pars[1,,'aB'])
+  learningRates <- matrix(rep(pars[1,,'aV'], each=ncol(cvs)), ncol=ncol(cvs), byrow=TRUE)
   
   # call C
-  updated <- adapt.c.dmc(startValues = startValues, 
-                         learningRates = learningRates, 
+  updated <- adapt.c.dmc(startValues = startValues,
+                         learningRates = learningRates,
                          feedback = cvs,
                          learningRule='SARSA')
   
   # add back data to 'pars' array
   pars[,,'SR'] <- matrix(updated$adaptedValues[choiceIdx], ncol=2, byrow=FALSE)
-  pars[,,'SB'] <- updated$adaptedValues[,ncol(cvs)]
   
   # Determine parameter mean_v
-  mean_v <- cbind(pars[1,,"V0"] + pars[1,,"wV"]*(pars[2,,"SR"]-pars[1,,"SR"]),
-                  pars[2,,"V0"] + pars[2,,"wV"]*(pars[1,,"SR"]-pars[2,,"SR"]))
+  mean_v <- cbind(pars[1,,"V0"] + pars[1,,"wV"]*(pars[2,,"SR"]-pars[1,,"SR"]) + pars[1,,'wS'] * (pars[2,,"SR"]+pars[1,,"SR"]),
+                  pars[2,,"V0"] + pars[2,,"wV"]*(pars[1,,"SR"]-pars[2,,"SR"]) + pars[2,,'wS'] * (pars[2,,"SR"]+pars[1,,"SR"]))
   
   # Determine parameter b
-  b <- cbind(pars[1,,"B0"] * (1 + pars[1,,'wB']*(pars[1,,'SB']-.5)), 
-             pars[2,,"B0"] * (1 + pars[2,,'wB']*(pars[2,,'SB']-.5)))
-  
-  return(list(pars=pars, mean_v=mean_v, b=b, updated=updated))
+  b <-  cbind((1+pars[1,,'b_E_mod'])*pars[1,,"B0"], 
+              (1+pars[2,,'b_E_mod'])*pars[2,,"B0"])
+  v_T <- cbind((1+pars[1,,'v_T_mod'])*pars[1,,"v_T"], 
+               (1+pars[1,,'v_T_mod'])*pars[1,,"v_T"])
+  return(list(pars=pars, mean_v=mean_v, b=b, v_T = v_T, updated=updated))
 }
 
 
@@ -85,27 +93,29 @@ random.dmc <- function(p.list,model,save.adapt=TRUE)
   # use row.facs to see if pars need reordering
   if(!is.null(attr(cvs, 'row.facs'))) {
     row.facs = attr(cvs, 'row.facs')
-    dfColnames <- names(attr(model, 'factors'))
-    if('.' %in% row.facs[1]) {
-      cues = sub('s1.', '', row.facs)
-      newOrder = match(cues, attr(p.list, 'facs')$cue)
-    } else {
-      newOrder = match(row.facs, attr(p.list, 'facs')$S)
-    }
+    newOrder = match(row.facs, apply(attr(p.list, 'facs'), 1, paste, collapse='.'))
     pars <- pars[,newOrder,]
   }
   
+  
   # re-generate choice idx (couldn't be passed...)
-  choiceIdx <- apply(cvs[,1:(ncol(cvs)-1)], 1, function(x) which(!is.na(x)))
-  choiceIdx <- ifelse(choiceIdx%%2==0, choiceIdx-1, choiceIdx)
-  choiceIdx <- rep(choiceIdx, each=2)
-  choiceIdx[seq(2,length(choiceIdx),2)] = choiceIdx[seq(2,length(choiceIdx),2)]+1
-  choiceIdx <- cbind(rep(1:(length(choiceIdx)/2),each=2), choiceIdx)
+  if(sum(apply(cvs, 1, function(x) sum(!is.na(x))) > 1)) {
+    # multi-feedback outcomes make it easy to define VVchoiceIdx
+    choiceIdx <- !is.na(cvs)
+    choiceIdx <- which(t(choiceIdx), arr.ind = TRUE)[,2:1]  # Gives for every trial each column that is chosen
+  } else {
+    choiceIdx <- apply(cvs, 1, function(x) which(!is.na(x)))
+    choiceIdx <- ifelse(choiceIdx%%2==0, choiceIdx-1, choiceIdx)
+    choiceIdx <- rep(choiceIdx, each=2)
+    choiceIdx[seq(2,length(choiceIdx),2)] = choiceIdx[seq(2,length(choiceIdx),2)]+1
+    choiceIdx <- cbind(rep(1:(length(choiceIdx)/2),each=2), choiceIdx)
+  }
   
   # update
   tmp <- transform2.dmc(pars, cvs, choiceIdx)
   mean_v = tmp$mean_v
   b = tmp$b
+  v_T = tmp$v_T
   pars = tmp$pars
   updated = tmp$updated
   
@@ -114,7 +124,7 @@ random.dmc <- function(p.list,model,save.adapt=TRUE)
     adapt <- data.frame()[1:n,]
     for(i in 1:dim(pars)[1]) { # accumulator N
       accumulatorName <- paste0('r', i)
-      for(parName in c('SR', 'SB')) {
+      for(parName in c('SR')) {
         ii <- which(dimnames(pars)[[3]]==parName)
         adapt[,paste0(parName, '.', accumulatorName)] <- pars[i,,ii]
       }
@@ -126,30 +136,35 @@ random.dmc <- function(p.list,model,save.adapt=TRUE)
   }
   
   # generate random trials
-  out <- rWaldRaceSM(n=n,
-                     A=list(pars[1,,'A'], pars[2,,'A']),
-                     v=list(mean_v[,1], mean_v[,2]),
-                     B=list(b[,1], b[,2]),
-                     t0=list(pars[1,,'t0'], pars[2,,'t0']),
-                     st0=0,
-                     s=list(pars[1,,'s'], pars[2,,'s']),
-                     silent=TRUE, simPerTrial=FALSE)
-  colnames(out) <- c('RT', 'R')
+  out <- rWaldRace_Timing_NS(n=n,
+                             A=list(pars[1,,'A'], pars[2,,'A']),
+                             st0=0,
+                             v_E=list(mean_v[,1], mean_v[,2]),
+                             B_E=list(b[,1], b[,2]),
+                             t0E=list(pars[1,,'t0'], pars[2,,'t0']),
+                             s_E=list(pars[1,,'s'], pars[2,,'s']),
+                             v_T=list(v_T[,1]),
+                             B_T= list(pars[1,,'B_T'], pars[2,,'B_T']),
+                             t0T=list(pars[1,,'t0T'], pars[2,,'t0T']),
+                             s_T=list(pars[1,,'s_T'], pars[2,,'s_T']),
+                             silent=TRUE, simPerTrial=FALSE)
+  colnames(out) <- c('RT', 'R', 'timer.response')
   
   if(!is.null(attr(cvs, 'row.facs'))) {
-    if('.' %in% attr(cvs, 'row.facs')[1]) {
-      out$cue <- factor(cues, levels=attr(model,"factors")$cue)
-    } else {
-      out$S <- factor(row.facs, levels=attr(model,"factors")$S)
+    row.facs = do.call(rbind, strsplit(attr(cvs, 'row.facs'), split='.', fixed=TRUE))
+    facNames <- colnames(attr(p.list, 'facs'))
+    for(i in 1:length(facNames)) {
+      out[,facNames[i]] <- row.facs[,i]
     }
   }
+  
   
   if(save.adapt) attr(out, 'adapt') <- adapt
   out
 }
 
 
-likelihood.dmc <- function(p.vector,data,min.like=1e-10, use.c=TRUE)   
+likelihood.dmc <- function(p.vector,data,min.like=1e-10, use.c=TRUE)  
 {
   
   p.list <- p.list.dmc(p.vector,model=attributes(data)$model,n1order=FALSE,
@@ -170,6 +185,7 @@ likelihood.dmc <- function(p.vector,data,min.like=1e-10, use.c=TRUE)
   pars = tmp$pars
   mean_v = tmp$mean_v
   b = tmp$b
+  v_T = tmp$v_T
   
   # likelihood
   pmax(dWaldRace(rt=data$RT, response=data$R,
@@ -177,8 +193,12 @@ likelihood.dmc <- function(p.vector,data,min.like=1e-10, use.c=TRUE)
                  v=list(mean_v[,1], mean_v[,2]),
                  B=list(b[,1], b[,2]),
                  t0=list(pars[1,,'t0'], pars[2,,'t0']),
-                 st0=pars[1,1,'st0'],
                  s=list(pars[1,,'s'], pars[2,,'s']),
+                 B_T= list(pars[1,,'B_T'], pars[2,,'B_T']),
+                 A_T= list(pars[1,,'A'], pars[2,,'A']), #A_T == A
+                 v_T= list(v_T[,1], v_T[,2]),
+                 t0T=list(pars[1,,'t0T'], pars[2,,'t0T']),
+                 s_T=list(pars[1,,'s_T'], pars[2,,'s_T']),
                  silent=TRUE), min.like, na.rm=TRUE)
 }
 
@@ -204,7 +224,7 @@ prepareForFitting <- function(dat, n_bins=5) {
   
   # Get response "correctness" - i.e., whether a choice corresponds to the optimal choice
   # code choice in terms of upper bound (2) or lower bound (1), using the DDM convention in `rtdists`
-  df$choice <- ifelse(df$choiceIsHighP, 2, 1) 
+  df$choice <- ifelse(df$choiceIsHighP, 2, 1)
   
   # check for outcome column, for compatibility with older data. This will be removed later.
   if('outcome' %in% colnames(df)) {
@@ -231,7 +251,7 @@ prepareForFitting <- function(dat, n_bins=5) {
   # Set-up values vector
   values <- rep(0.5, ncol(outcomes))
   
-  # On the basis of which alternatives is chosen? 
+  # On the basis of which alternatives is chosen?
   # Make a matrix of nTrials x 2; first column = trialN, second column = choice number
   VVchoiceIdx <- matrix(FALSE, nrow=nrow(df), ncol=ncol(outcomes))
   for(tr in 1:nrow(df)) {
@@ -242,4 +262,3 @@ prepareForFitting <- function(dat, n_bins=5) {
   choice <- df$choice
   return(list(df=df, VVchoiceIdx=VVchoiceIdx, outcomes=outcomes, values=values, trialsToIgnore=trialsToIgnore))
 }
-

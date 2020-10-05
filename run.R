@@ -8,7 +8,7 @@ if(length(args)>0) {
 } else {
   # manual run
   rm(list=ls())
-  modelName <- 'arw-RL-timing_v_Tmod_EduGuess'
+  modelName <- 'arw-RL-timing_v_T_b_E_mod'
   dataName <- 'exp3'     # NB: exp 3 = SAT; exp 2 = reversal learning
   diagnosticsOnly <- FALSE
 }
@@ -18,12 +18,12 @@ source("dmc/dmc.R")
 source('utils.R')
 source('models.R')
 samplesDir <- 'samples'
-setwd("/home/nsteven/RLDMC2")
+setwd("/home/nsteven/RLDMC")
 
 fn <- paste0('model-', modelName, '_data-', dataName)
 model <- setupModel(modelName)
 p.vector  <- c(t0=.2, aV=-1.6, wS=1, B0 = 1, B_T = 1, V0 = 1.5,
-               wV=1, v_T = 1, v_T_mod.SPD = 0.5)
+               wV=1, v_T = 1, v_T_mod.SPD = -0.5, b_E_mod.SPD = 0.5)
 
 # Data ----
 tmp <- loadData(dataName, removeBlock=NULL)

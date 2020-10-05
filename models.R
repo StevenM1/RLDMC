@@ -518,5 +518,18 @@ setupModel <- function(modelName) {
                        responses=c("r1","r2"),
                        type="norm")
   }
+  else if(modelName == 'arw-RL-timing_v_T_b_E_mod') {
+    load_model("RW-Timing", "arw-RL-timing_v_T_b_E_mod.R")
+    model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1",
+                                  B0="1", B_T = "1", wS='1', s_T = "1", v_T = "1", t0T = "1",
+                                  SR="1", aV="1", v_T_mod = "cue", b_E_mod = "cue",
+                                  V0="1", wV="1"),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c(st0=0, s=1, s_T = 1, SR=-10,
+                                   A=0, t0T = 0.05, v_T_mod.ACC=0, b_E_mod.ACC = 0),
+                       factors=list(S=c("s1"), cue=c('ACC', 'SPD')), 
+                       responses=c("r1","r2"),
+                       type="norm")
+  }
   return(model)
 }
