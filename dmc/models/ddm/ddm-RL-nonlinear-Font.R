@@ -10,7 +10,7 @@ library(dmcAdapt)
 transform.dmc <- function(par.df,do.trans=TRUE) 
 {
   par.df$aV = t(pnorm(t(par.df$aV)))
-#  par.df$SR = t(pnorm(t(par.df$SR)))
+  par.df$SR = t(pnorm(t(par.df$SR)))
   par.df$d <- par.df$d*par.df$t0  # proportional to t0, bounded -1 to 1
   
   
