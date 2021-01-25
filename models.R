@@ -410,7 +410,7 @@ setupModel <- function(modelName) {
                        factors=list(S=c("s1"), cue=c('ACC', 'SPD')), 
                        responses=c("r1","r2"),
                        type="norm")
-    # softmax-RL2-SAT-none -----------------------------------------------------------------
+  # softmax-RL2-SAT-none -----------------------------------------------------------------
   } else if(modelName == 'softmax-RL2-SAT-none') {
     load_model ("Softmax", "softmax_RL2.R")
     model <- model.dmc(p.map=list(Beta="1", aV="1", SR='1'),
@@ -437,6 +437,85 @@ setupModel <- function(modelName) {
                        factors=list(S=c("s1")), 
                        responses=c("r1","r2"),
                        type="norm")
+    # softmax-RL4-SAT-beta (Q0=0) -----------------------------------------------------------------
+  } else if(modelName == 'softmax-RL4-SAT-beta') {
+    load_model ("Softmax", "softmax_RL2.R")
+    model <- model.dmc(p.map=list(Beta="cue", aV="1", SR='1'),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c('SR'=-10),
+                       factors=list(S=c("s1"), cue=c('ACC', 'SPD')), 
+                       responses=c("r1","r2"),
+                       type="norm")
+    # softmax-RL4-SAT-none (Q0=0) -----------------------------------------------------------------
+  } else if(modelName == 'softmax-RL4-SAT-none') {
+    load_model ("Softmax", "softmax_RL2.R")
+    model <- model.dmc(p.map=list(Beta="1", aV="1", SR='1'),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c('SR'=-10),
+                       factors=list(S=c("s1")), 
+                       responses=c("r1","r2"),
+                       type="norm")
+    # softmax-RL4 (Q0=0) -----------------------------------------------------------------
+  } else if(modelName == 'softmax-RL4') {
+    load_model ("Softmax", "softmax_RL2.R")
+    model <- model.dmc(p.map=list(Beta="1", aV="1", SR='1'),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c('SR'=-10),
+                       factors=list(S=c("s1")), 
+                       responses=c("r1","r2"),
+                       type="norm")
+    # Multi-alternative RL-ARD -----------------------------------------------------------------
+  } else if(modelName == 'arw-RL-WA') {
+    load_model ("RW", "arw-RL-WA.R")
+    model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1",
+                                  B0="1", wS='1',
+                                  SR="1", aV="1",
+                                  V0="1", wV="1"),
+                       match.map=list(M=list(s1=1, s1=2, s1=3)),
+                       constants=c(st0=0, s=1,
+                                   SR=-10, A=0),
+                       factors=list(S=c("s1")), 
+                       responses=c("r1","r2","r3"),
+                       type="norm")
+    # ddm-RL-nonlinear with threshold-modulation by mean Q-values -----------------------------------------------------------------
+  } else if(modelName == 'ddm-RL-nonlinear-mag') {
+    load_model ("ddm", "ddm-RL-nonlinear-mag.R")
+    model <- model.dmc(p.map=list(aV="1", SR='1', m='1',
+                                  t0='1', st0='1', d='1',
+                                  z='1', sz='1', a='1',
+                                  vmax='1', amod='1',
+                                  sv='1'),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c(SR=-10, z=0.5, d=0, sv=0, sz=0, st0=0),
+                       factors=list(S=c("s1")), 
+                       responses=c("r1","r2"),
+                       type="norm")
+    # ddm-RL-nonlinear with threshold-modulation by mean Q-values, SR -----------------------------------------------------------------
+  } else if(modelName == 'ddm-RL-nonlinear-mag-SR') {
+    load_model ("ddm", "ddm-RL-nonlinear-mag.R")
+    model <- model.dmc(p.map=list(aV="1", SR='1', m='1',
+                                  t0='1', st0='1', d='1',
+                                  z='1', sz='1', a='1',
+                                  vmax='1', amod='1',
+                                  sv='1'),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c(z=0.5, d=0, sv=0, sz=0, st0=0),
+                       factors=list(S=c("s1")), 
+                       responses=c("r1","r2"),
+                       type="norm")
+    # ddm-RL-nonlinear, include SR -----------------------------------------------------------------
+  } else if(modelName == 'ddm-RL-nonlinear-SR') {
+    load_model ("ddm", "ddm-RL-nonlinear.R")
+    model <- model.dmc(p.map=list(aV="1", SR='1', m='1',
+                                  t0='1', st0='1', d='1',
+                                  z='1', sz='1', a='1',
+                                  vmax='1',
+                                  sv='1'),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c(z=0.5, d=0, sv=0, sz=0, st0=0),
+                       factors=list(S=c("s1")), 
+                       responses=c("r1","r2"),
+                       type="norm")
     # ddm-RL-nonlinear Fontanesi (double feedback)-----------------------------------------------------------------
   } else if(modelName == 'ddm-RL-nonlinear-Font') {
     load_model ("ddm", "ddm-RL-nonlinear-Font.R")
@@ -446,7 +525,7 @@ setupModel <- function(modelName) {
                                   vmax='1',
                                   sv='1'),
                        match.map=list(M=list(s1=1, s1=2)),
-                       constants=c(SR=27.5, z=0.5, d=0, sv=0, sz=0, st0=0),
+                       constants=c(SR=-10, z=0.5, d=0, sv=0, sz=0, st0=0),
                        factors=list(S=c("s1")), 
                        responses=c("r1","r2"),
                        type="norm")
@@ -464,6 +543,161 @@ setupModel <- function(modelName) {
                        responses=c("r1","r2"),
                        type="norm")
   # arw-RL-mag nonlinear on rewards -----------------------------------------------------------------
+  } else if(modelName == 'arw-RL-mag-nonlinear') {
+    load_model ("RW", "arw-RL-mag-nonlinear.R")
+    model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1",
+                                  B0="1", wS='1',
+                                  SR="1", aV="1",
+                                  V0="1", wV="1", vmax='1'),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c(st0=0, s=1,
+                                   SR=-10, A=0),
+                       factors=list(S=c("s1")), 
+                       responses=c("r1","r2"),
+                       type="norm")
+    # arw-RL-mag with RELATIVE learning rule -----------------------------------------------------------------
+  } else if(modelName == 'arw-RL-RELATIVE') {
+    load_model ("RW", "arw-RL-RELATIVE.R")
+    model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1",
+                                  B0="1", wS='1',
+                                  SR="1", aVc="1", aVu='1',
+                                  V0="1", wV="1"),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c(st0=0, s=1,
+                                   SR=-10, A=0),
+                       factors=list(S=c("s1")), 
+                       responses=c("r1","r2"),
+                       type="norm")
+    # arw-RL-mag with REALTIVE and SR -----------------------------------------------------------------
+  } else if(modelName == 'arw-RL-RELATIVE-SR') {
+    load_model ("RW", "arw-RL-RELATIVE.R")
+    model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1",
+                                  B0="1", wS='1',
+                                  SR="1", aVc="1", aVu='1',
+                                  V0="1", wV="1"),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c(st0=0, s=1, A=0),
+                       factors=list(S=c("s1")), 
+                       responses=c("r1","r2"),
+                       type="norm")
+    # arw-RL-mag nonlinear on rewards, SR -----------------------------------------------------------------
+  } else if(modelName == 'arw-RL-mag-nonlinear-SR') {
+    load_model ("RW", "arw-RL-mag-nonlinear.R")
+    model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1",
+                                  B0="1", wS='1',
+                                  SR="1", aV="1",
+                                  V0="1", wV="1", vmax='1'),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c(st0=0, s=1,
+                                   A=0),
+                       factors=list(S=c("s1")), 
+                       responses=c("r1","r2"),
+                       type="norm")
+    # arw-RL-mag nonlinear magnitude, SR -----------------------------------------------------------------
+  } else if(modelName == 'arw-RL-mag-nonlinear2-SR') {
+    load_model ("RW", "arw-RL-mag-nonlinear2.R")
+    model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1",
+                                  B0="1", wS='1',
+                                  SR="1", aV="1",
+                                  V0="1", wV="1", k='1'),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c(st0=0, s=1,
+                                   A=0),
+                       factors=list(S=c("s1")), 
+                       responses=c("r1","r2"),
+                       type="norm")
+    # arw-RL-mag, nonlinear difference + log magnitude SR -----------------------------------------------------------------
+  } else if(modelName == 'arw-RL-mag-nonlinear3-SR') {
+    load_model ("RW", "arw-RL-mag-nonlinear3.R")
+    model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1",
+                                  B0="1", wS='1',
+                                  SR="1", aV="1",
+                                  V0="1", wV="1", k='1'),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c(st0=0, s=1,
+                                   A=0),
+                       factors=list(S=c("s1")), 
+                       responses=c("r1","r2"),
+                       type="norm")
+    # arw-RL-mag exponential SR -----------------------------------------------------------------
+  } else if(modelName == 'arw-RL-mag-nonlinear4-SR') {
+    load_model ("RW", "arw-RL-mag-nonlinear4.R")
+    model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1",
+                                  B0="1", wS='1',
+                                  SR="1", aV="1",
+                                  V0="1", wV="1", k2='1'),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c(st0=0, s=1,
+                                   A=0),
+                       factors=list(S=c("s1")), 
+                       responses=c("r1","r2"),
+                       type="norm")
+    # arw-RL-mag, exponential, reference, SR -----------------------------------------------------------------
+  } else if(modelName == 'arw-RL-mag-nonlinear5-SR') {
+    load_model ("RW", "arw-RL-mag-nonlinear5.R")
+    model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1",
+                                  B0="1", wS='1',
+                                  SR="1", aV="1",
+                                  V0="1", wV="1", k2='1'),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c(st0=0, s=1,
+                                   A=0),
+                       factors=list(S=c("s1")), 
+                       responses=c("r1","r2"),
+                       type="norm")
+    # arw-RL-mag, exponential (only diff), reference, SR -----------------------------------------------------------------
+  } else if(modelName == 'arw-RL-mag-nonlinear6-SR') {
+    load_model ("RW", "arw-RL-mag-nonlinear6.R")
+    model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1",
+                                  B0="1", wS='1',
+                                  SR="1", aV="1",
+                                  V0="1", wV="1", k2='1'),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c(st0=0, s=1,
+                                   A=0),
+                       factors=list(S=c("s1")), 
+                       responses=c("r1","r2"),
+                       type="norm")
+    # arw-RL-mag, log, SR -----------------------------------------------------------------
+  } else if(modelName == 'arw-RL-mag-log-SR') {
+    load_model ("RW", "arw-RL-mag-log.R")
+    model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1",
+                                  B0="1", wS='1',
+                                  SR="1", aV="1",
+                                  V0="1", wV="1"),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c(st0=0, s=1,
+                                   A=0),
+                       factors=list(S=c("s1")), 
+                       responses=c("r1","r2"),
+                       type="norm")
+ # arw-RL-mag, logbase, SR -----------------------------------------------------------------
+} else if(modelName == 'arw-RL-mag-logbase-SR') {
+  load_model ("RW", "arw-RL-mag-logbase.R")
+  model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1",
+                                B0="1", wS='1',
+                                SR="1", aV="1",
+                                V0="1", wV="1", k2='1'),
+                     match.map=list(M=list(s1=1, s1=2)),
+                     constants=c(st0=0, s=1,
+                                 A=0),
+                     factors=list(S=c("s1")), 
+                     responses=c("r1","r2"),
+                     type="norm")
+  # arw-RL-mag, SR -----------------------------------------------------------------
+} else if(modelName == 'arw-RL-mag-SR') {
+    load_model ("RW", "arw-RL-mag.R")
+    model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1",
+                                  B0="1", wS='1',
+                                  SR="1", aV="1",
+                                  V0="1", wV="1"),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c(st0=0, s=1,
+                                   A=0),
+                       factors=list(S=c("s1")), 
+                       responses=c("r1","r2"),
+                       type="norm")
+    # arw-RL-mag nonlinear on rewards -----------------------------------------------------------------
   } else if(modelName == 'arw-RL-mag-nlLearn-Font') {
     load_model ("RW", "arw-RL-mag-nlLearn-Font.R")
     model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1",
