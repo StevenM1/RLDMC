@@ -97,8 +97,8 @@ getqRTsByCue <- function(data3, pp3) {
 
 
 # Load quantiles of winning model & RL-fARD, BPICs ---------------------------------------------------
-modelName <- 'arw-RL-mag-SAT-V02'
-dataName <- 'exp1t'
+modelName <- 'ddm-RL-SAT-a-st0'  #'arw-RL-mag-SAT-V02'
+dataName <- 'exp3'
 fn <- paste0('model-', modelName, '_data-', dataName)
 tmp <- getDataPpBPIC(modelName, dataName)
 qRTs <- getqRTsByCue(tmp[['data3']], tmp[['pp3']])
@@ -106,7 +106,82 @@ qRTs <- getqRTsByCue(tmp[['data3']], tmp[['pp3']])
 # Combine -----------------------------------------------------------------
 allqRTs <- list(qRTs)
 
-# Plot --------------------------------------------------------------------
+# Plot single --------------------------------------------------------------------
+layoutM <- matrix(1:7, nrow=5, byrow=TRUE)
+layoutM[c(1, 5),1:2] <- 1
+#layoutM[c(1, 5),4:5] <- 9
+layoutM[2:4,1:2] <- 2:7 #matrix(c(2:13), nrow=3, byrow=TRUE)
+#layoutM[2:4,4:5] <- 10:15 #matrix(c(2:13), nrow=3, byrow=TRUE)
+#layoutM[,3] <- 8
+layoutM
+
+
+if(savePlot) pdf('./figures/exp3-SAT-RLDDMst0-2.pdf', width=3.5, height=7/4*3)
+layout(layoutM, heights = c(0.01, .8, 1, 1, 0.01), widths=c(1,1)) #,.1,1,1))
+par(oma=c(3,4,2,0), mar=c(0, 0, 1, 0.5) + 0.1, 
+    mgp=c(2.75,.75,0), las=1, bty='l')
+i <- 0
+data.cex=1.5
+corrRTylim <- errRTylim <- c(.35,1.1)
+for(qRTs in allqRTs) {
+  plot.new()
+  # if(i == 0) mtext(fn, side=3, cex=.66*1.2, font=2, line=1)
+  if(i == 0) { mtext('RL-DDM A3', side=3, cex=.66*1.2, font=2, line=2); mtext(paste0('BPIC = ', round(sum(tmp$BPIC[,2]))), line=1, cex=.66) }
+  #if(i == 2) {plot.new(); mtext('RL-fARD', side=3, cex=.66*1.2, font=2, line=1)}
+  for(cue in c('SPD', 'ACC')) {
+    i <- i+1
+    idxD <- qRTs$meanAccByCue[[1]]$cue==cue
+    idxM <- qRTs$meanAccByCue[[2]]$cue==cue
+    
+    plotDataPPBins(data=qRTs$meanAccByCue[[1]][idxD,], pp=qRTs$meanAccByCue[[2]][idxM,],
+                   xaxt='n', draw.legend = i==1, data.cex = data.cex,
+                   dep.var='acc', ylab='', xlab = '', yaxt='n',
+                   legend.pos='bottomright', ylim=c(0.5, 0.9), hline.by=0.1)
+    axis(1, at=seq(2, 10, 2), labels=rep(NA, 5), lwd=2)
+    if(i == 1) {
+      mtext('Accuracy', side=2, cex=.66, line=3, las=0, font=1)
+      axis(2, at=seq(.5, .9, .1), lwd=1.5)
+    } else {
+      axis(2, at=seq(.5, .9, .1), labels=rep(NA, 5), lwd=1.5)
+    }
+    if(i == 1) title('Speed')
+    if(i == 2) title('Accuracy')
+    if(i == 3) title('Speed')
+    if(i == 4) title('Accuracy')
+    
+    ##
+    plotDataPPBins(data=qRTs$q10RTsByCue[[1]][idxD,], pp=qRTs$q10RTsByCue[[2]][idxM,], dep.var='RT.10.', 
+                   ylim=corrRTylim, xaxt='n', ylab='', yaxt='n', draw.legend = FALSE, data.cex = data.cex)
+    plotDataPPBins(data=qRTs$q50RTsByCue[[1]][idxD,], pp=qRTs$q50RTsByCue[[2]][idxM,], dep.var='RT.50.', plot.new = FALSE, draw.legend=FALSE, data.cex = data.cex)
+    plotDataPPBins(data=qRTs$q90RTsByCue[[1]][idxD,], pp=qRTs$q90RTsByCue[[2]][idxM,], dep.var='RT.90.', plot.new = FALSE, draw.legend=FALSE, data.cex = data.cex)
+    axis(1, at=seq(2, 10, 2), labels=NA, lwd=1.5)
+    if(i == 1) {
+      mtext('Correct RTs (s)', side=2, cex=.66, line=3, las=0, font=1)
+      axis(2, seq(.4, 1.2, .2), lwd=1.5)
+    } else {
+      axis(2, seq(.4, 1.2, .2), labels=NA, lwd=1.5)
+    }
+    
+    ##
+    plotDataPPBins(data=qRTs$q10RTsByCueE[[1]][idxD,], pp=qRTs$q10RTsByCueE[[2]][idxM,], dep.var='RT.10.', ylim=errRTylim, xaxt='n', ylab='', yaxt='n', draw.legend = FALSE, data.cex = data.cex)
+    plotDataPPBins(data=qRTs$q50RTsByCueE[[1]][idxD,], pp=qRTs$q50RTsByCueE[[2]][idxM,], dep.var='RT.50.', plot.new = FALSE, draw.legend=FALSE, data.cex = data.cex)
+    plotDataPPBins(data=qRTs$q90RTsByCueE[[1]][idxD,], pp=qRTs$q90RTsByCueE[[2]][idxM,], dep.var='RT.90.', plot.new = FALSE, draw.legend=FALSE, data.cex = data.cex)
+    if(i == 1) {
+      mtext('Error RTs (s)', side=2, cex=.66, line=3, las=0, font=1)
+      axis(2, seq(.4, 1.2, .2), lwd=1.5)
+    } else {
+      axis(2, seq(.4, 1.2, .2), labels=NA, lwd=1.5)
+    }
+    axis(1, at=seq(2, 10, 2), lwd=1.5)
+    mtext('Trial bin', side=1, cex=.66, line=2)
+    
+  }
+}
+dev.off()
+
+
+
+# Plot double --------------------------------------------------------------------
 layoutM <- matrix(1:25, nrow=5, byrow=TRUE)
 layoutM[c(1, 5),1:2] <- 1
 layoutM[c(1, 5),4:5] <- 9
@@ -172,6 +247,5 @@ for(qRTs in allqRTs) {
     }
     axis(1, at=seq(2, 10, 2), lwd=1.5)
     mtext('Trial bin', side=1, cex=.66, line=2)
-    
   }
 }

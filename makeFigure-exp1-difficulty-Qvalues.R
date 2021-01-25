@@ -35,12 +35,24 @@ getDataPpBPIC <- function(modelName, dataName, do.plot=FALSE, BPIConly=FALSE) {
 }
 
 # Load BPICs & quantiles per bin ---------------------------------------------------------------
-modelName <- 'arw-RL-mag'  #'ddm-RL-st0'
+modelName <- 'alba-RL-mag'  #'arw-RL-mag'  #'ddm-RL-st0'
 tmp <- getDataPpBPIC(modelName, 'exp1')
 BPIC <- tmp$BPIC
-qRTs <- getqRTs(tmp[['data3']], tmp[['pp3']])
-data3 <- tmp[['data3']]
-pp3 <- tmp[['pp3']]
+excludePerfectAcc <- FALSE
+if(excludePerfectAcc) {
+  tmp2 <- tmp
+  tmp2[['data3']] <- tmp[['data3']][sapply(tmp[['data3']], function(x) mean(x[x$bin==1&x$ease=='0.6','acc'])<1)]
+  tmp2[['pp3']] <- tmp[['pp3']][sapply(tmp[['data3']], function(x) mean(x[x$bin==1&x$ease=='0.6','acc'])<1)]
+  data3 <- tmp2[['data3']]
+  pp3 <- tmp2[['pp3']]
+  modelName <- paste0(modelName, '-exclperfacc')
+} else {
+  data3 <- tmp[['data3']]
+  pp3 <- tmp[['pp3']]
+}
+
+#data3 <- tmp[['data3']]
+#pp3 <- tmp[['pp3']]
 
 q10RTsByEase <- list(getDescriptives(data3, dep.var='RT.10.', attr.name='qRTsCorrectByEase', id.var1='~bin*ease', id.var2=NULL),
                      getDescriptives(pp3, dep.var='RT.10.', attr.name='qRTsCorrectByEase', id.var1='~reps*bin*ease', id.var2=NULL))
@@ -125,7 +137,7 @@ get.color <- function(ease) {
 }
 
 
-draw.polygon <- function(pp, dep.var, xaxis='bin', colorM='blue', plot.model.points=TRUE) {
+draw.polygon <- function(pp, dep.var, xaxis='bin', colorM='blue', plot.model.points=FALSE) {
   lowerQ <- aggregate(as.formula(paste0(dep.var, '~bin')), pp, quantile, .025)
   upperQ <- aggregate(as.formula(paste0(dep.var, '~bin')), pp, quantile, .975)
   xs <- c(lowerQ[,xaxis], rev(lowerQ[,xaxis]))

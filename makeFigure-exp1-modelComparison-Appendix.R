@@ -91,7 +91,8 @@ apply(allBPICs, 2, sum)
 
 # Plot posterior predictives
 if(savePlot) pdf('./figures/modelcomparison-exp1-RLDDMs.pdf', width=7, height=7/4*3)
-par(oma=c(3,4,1,0), mar=c(0, 0, 1, 0.5) + 0.1, mfcol=c(3,4), mgp=c(2.75,.75,0), las=1, bty='l')
+par(oma=c(3,4,2,0), mar=c(0, 0, 1, 0.5) + 0.1, mfcol=c(3,4), mgp=c(2.75,.75,0), las=1, bty='l')
+#par(oma=c(3,4,1,0), mar=c(0, 0, 1, 0.5) + 0.1, mfcol=c(3,4), mgp=c(2.75,.75,0), las=1, bty='l')
 i <- 0
 data.cex=1.5
 corrRTylim <- errRTylim <- c(.45, 1.1)
@@ -109,10 +110,13 @@ for(qRTs in allqRTs) {
   } else {
     axis(2, at=seq(.5, .9, .1), labels=rep(NA, 5), lwd=1.5)
   }
-  if(i == 1) title('RL-DDM A1')
-  if(i == 2) title('RL-DDM A2')
-  if(i == 3) title('RL-DDM A3')
-  if(i == 4) title('RL-DDM A4')
+  par(xpd=NA)
+  if(i == 1) title('RL-DDM A1', line=1.2)
+  if(i == 2) title('RL-DDM A2', line=1.2)
+  if(i == 3) title('RL-DDM A3', line=1.2)
+  if(i == 4) title('RL-DDM A4', line=1.2)
+  mtext(paste0('BPIC = ', round(apply(allBPICs, 2, sum)[i])), cex=.66) 
+  par(xpd=FALSE)
   
   ##
   plotDataPPBins(data=qRTs$q10RTsOverTime[[1]], pp=qRTs$q10RTsOverTime[[2]], dep.var='RT.10.', 
