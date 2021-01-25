@@ -84,8 +84,7 @@ random.dmc <- function(p.list,model,save.adapt=TRUE)
     newOrder = match(row.facs, apply(attr(p.list, 'facs'), 1, paste, collapse='.'))
     pars <- pars[,newOrder,]
   }
-  
-  
+
   # re-generate choice idx (couldn't be passed...)
   if(sum(apply(cvs, 1, function(x) sum(!is.na(x))) > 1)) {
     # multi-feedback outcomes make it easy to define VVchoiceIdx
