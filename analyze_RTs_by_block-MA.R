@@ -67,6 +67,23 @@ for(block in unique(rtByBlock$block_nr) ) {
 }
 legend('bottomright', paste0('Block ', 1:nBlocks), col=1:3, lty=c(1,1,1), lwd=2, bty='n')
 
+# test for SAT effect
+library(lme4)
+library(lmerTest)
+library(report)
+dat$lTrialBin <- log(dat$trialBin)
+mod1 <- glmer(choiceIsHighP~lTrialBin*cue + (1|pp), data=dat[!dat$excl,], family='binomial')
+summary(mod1)
+report(mod1)
+table_long(report(mod1))
+
+
+mod2 <- lmer(rt~trialBin*  cue + (1|pp), data=dat[!dat$excl,])
+summary(mod2)
+report(mod2)
+table_long(report(mod2))
+dat$RT <- dat$rt*1000  # to get more decimals; report rounds it to 2 digits
+table_long(report(lmer(RT~trialBin*  cue + (1|pp), data=dat[!dat$excl,])))
 
 
 # Experiment 2 ------------------------------------------------------------
@@ -204,13 +221,13 @@ dat$lTrialBin <- log(dat$trialBin)
 
 mod2rt = lmer(rt~block_nr*trialBin + (1|pp), data=dat)
 summary(mod2rt)
-report(mod2rt, df_method='kenward')
-table_long(report(mod2rt, df_method='kenward'))
+report(mod2rt)
+table_long(report(mod2rt))
 
 mod2acc = glmer(choiceIsHighP_orig~block_nr*lTrialBin + (1|pp), data=dat, family='binomial')
 summary(mod2acc)
 report(mod2acc)
-table_long(report(mod2acc, df_method='kenward'))
+table_long(report(mod2acc))
 
 
 # Exp 3
