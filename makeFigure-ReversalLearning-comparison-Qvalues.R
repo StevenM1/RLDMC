@@ -112,12 +112,13 @@ for(qRTs in allqRTs) {
   axis(1, at=seq(-60, 50, 10), labels=NA, lwd=lwd.axis)
   if(i == 1) {
     mtext('Proportion choice A', side=2, cex=.66, line=3, las=0, font=1)
-    mtext('RL-DDM', side=3, cex=.66*1.2, font=2, line=1)
+    mtext('RL-DDM', side=3, cex=.66*1.2, font=2, line=2)
     axis(2, at=seq(.3, .9, .1), lwd=lwd.axis)
   } else {
-    mtext('RL-ARD', side=3, cex=.66*1.2, font=2, line=1)
+    mtext('RL-ARD', side=3, cex=.66*1.2, font=2, line=2)
     axis(2, at=seq(.3, .9, .1), labels=rep(NA, 5), lwd=lwd.axis)
   }
+  mtext(paste0('BPIC = ', round(apply(allBPICs, 2, sum)[i])), line=1, cex=.66)
 
   ##
   plotDataPPBins(data=qRTs$q10RTsOverTime[[1]], pp=qRTs$q10RTsOverTime[[2]],

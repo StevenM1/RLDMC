@@ -410,7 +410,7 @@ setupModel <- function(modelName) {
                        factors=list(S=c("s1"), cue=c('ACC', 'SPD')), 
                        responses=c("r1","r2"),
                        type="norm")
-    # softmax-RL2-SAT-none -----------------------------------------------------------------
+  # softmax-RL2-SAT-none -----------------------------------------------------------------
   } else if(modelName == 'softmax-RL2-SAT-none') {
     load_model ("Softmax", "softmax_RL2.R")
     model <- model.dmc(p.map=list(Beta="1", aV="1", SR='1'),
@@ -436,6 +436,46 @@ setupModel <- function(modelName) {
                        constants=c(),
                        factors=list(S=c("s1")), 
                        responses=c("r1","r2"),
+                       type="norm")
+    # softmax-RL4-SAT-beta (Q0=0) -----------------------------------------------------------------
+  } else if(modelName == 'softmax-RL4-SAT-beta') {
+    load_model ("Softmax", "softmax_RL2.R")
+    model <- model.dmc(p.map=list(Beta="cue", aV="1", SR='1'),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c('SR'=-10),
+                       factors=list(S=c("s1"), cue=c('ACC', 'SPD')), 
+                       responses=c("r1","r2"),
+                       type="norm")
+    # softmax-RL4-SAT-none (Q0=0) -----------------------------------------------------------------
+  } else if(modelName == 'softmax-RL4-SAT-none') {
+    load_model ("Softmax", "softmax_RL2.R")
+    model <- model.dmc(p.map=list(Beta="1", aV="1", SR='1'),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c('SR'=-10),
+                       factors=list(S=c("s1")), 
+                       responses=c("r1","r2"),
+                       type="norm")
+    # softmax-RL4 (Q0=0) -----------------------------------------------------------------
+  } else if(modelName == 'softmax-RL4') {
+    load_model ("Softmax", "softmax_RL2.R")
+    model <- model.dmc(p.map=list(Beta="1", aV="1", SR='1'),
+                       match.map=list(M=list(s1=1, s1=2)),
+                       constants=c('SR'=-10),
+                       factors=list(S=c("s1")), 
+                       responses=c("r1","r2"),
+                       type="norm")
+    # Multi-alternative RL-ARD -----------------------------------------------------------------
+  } else if(modelName == 'arw-RL-WA') {
+    load_model ("RW", "arw-RL-WA.R")
+    model <- model.dmc(p.map=list(A="1",t0="1",st0="1",s="1",
+                                  B0="1", wS='1',
+                                  SR="1", aV="1",
+                                  V0="1", wV="1"),
+                       match.map=list(M=list(s1=1, s1=2, s1=3)),
+                       constants=c(st0=0, s=1,
+                                   SR=-10, A=0),
+                       factors=list(S=c("s1")), 
+                       responses=c("r1","r2","r3"),
                        type="norm")
   }
   return(model)

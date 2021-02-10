@@ -7,9 +7,9 @@ if(length(args)>0) {
 } else {
   # manual run
   rm(list=ls())
-  modelName <- 'arw-RL-mag'
-  dataName <- 'exp1'     # NB: exp 3 = SAT; exp 2 = reversal learning
-  diagnosticsOnly <- TRUE
+  modelName <- 'arw-RL-WA' #'ddm-RL-nonlinear-svszst0'
+  dataName <- 'expMA'     # NB: exp 3 = SAT; exp 2 = reversal learning
+  diagnosticsOnly <- FALSE
 }
 
 # Source ------------------------------------------------------------------
@@ -31,6 +31,7 @@ dat <- tmp[['dat']]
 for(sub in unique(dat$sub)) {
   d <- prepareForFitting(dat[dat$sub==sub,])
   attr(data[[sub]], 'cvs') <- d$outcomes
+  attr(attr(data[[sub]], 'cvs'), 'VVchoiceIdx') <- d$VVchoiceIdx    # Trick for random.dmc
   attr(data[[sub]], 'VVchoiceIdx') <- d$VVchoiceIdx
   attr(data[[sub]], 'startingValues') <- d$values
   attr(data[[sub]], 'trialsToIgnore') <- d$trialsToIgnore

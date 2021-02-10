@@ -94,12 +94,25 @@ random.dmc <- function(p.list,model,save.adapt=TRUE)
     pars <- pars[,newOrder,]
   }
   
+  # # re-generate choice idx (couldn't be passed...)
+  # choiceIdx <- apply(cvs, 1, function(x) which(!is.na(x)))
+  # choiceIdx <- ifelse(choiceIdx%%2==0, choiceIdx-1, choiceIdx)
+  # choiceIdx <- rep(choiceIdx, each=2)
+  # choiceIdx[seq(2,length(choiceIdx),2)] = choiceIdx[seq(2,length(choiceIdx),2)]+1
+  # choiceIdx <- cbind(rep(1:(length(choiceIdx)/2),each=2), choiceIdx)
+  
   # re-generate choice idx (couldn't be passed...)
-  choiceIdx <- apply(cvs, 1, function(x) which(!is.na(x)))
-  choiceIdx <- ifelse(choiceIdx%%2==0, choiceIdx-1, choiceIdx)
-  choiceIdx <- rep(choiceIdx, each=2)
-  choiceIdx[seq(2,length(choiceIdx),2)] = choiceIdx[seq(2,length(choiceIdx),2)]+1
-  choiceIdx <- cbind(rep(1:(length(choiceIdx)/2),each=2), choiceIdx)
+  if(sum(apply(cvs, 1, function(x) sum(!is.na(x))) > 1)) {
+    # multi-feedback outcomes make it easy to define VVchoiceIdx
+    choiceIdx <- !is.na(cvs)
+    choiceIdx <- which(t(choiceIdx), arr.ind = TRUE)[,2:1]  # Gives for every trial each column that is chosen
+  } else {
+    choiceIdx <- apply(cvs, 1, function(x) which(!is.na(x)))
+    choiceIdx <- ifelse(choiceIdx%%2==0, choiceIdx-1, choiceIdx)
+    choiceIdx <- rep(choiceIdx, each=2)
+    choiceIdx[seq(2,length(choiceIdx),2)] = choiceIdx[seq(2,length(choiceIdx),2)]+1
+    choiceIdx <- cbind(rep(1:(length(choiceIdx)/2),each=2), choiceIdx)
+  }
   
   # update
   tmp <- transform2.dmc(pars, cvs, choiceIdx)

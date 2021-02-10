@@ -1,5 +1,6 @@
 doSample <- function(data, p.prior, pp.prior, fileName, restart=FALSE,
-                     nCores=31, nmcBurn=250, nmc=1000, cut.converge=1.03, thorough=TRUE) {
+                     nCores=31, nmcBurn=250, nmc=1000, cut.converge=1.03, thorough=TRUE,
+                     max.try=20) {
   if(restart==FALSE & file.exists(paste0(fileName, '.RData'))) {
     samples <- loadSamples(fileName)
   } else {
@@ -17,7 +18,7 @@ doSample <- function(data, p.prior, pp.prior, fileName, restart=FALSE,
     samples <- h.samples.dmc(samples=samples, nmc=nAdd, add=TRUE)
   }
   samples <- h.RUN.dmc(hsamples = samples, cores=nCores, cut.converge=cut.converge, thorough = thorough,
-                       verbose=TRUE, saveFn=fileName)
+                       verbose=TRUE, saveFn=fileName, max.try=max.try)
 }
 
 resetPar <- function() {
@@ -29,7 +30,7 @@ resetPar <- function() {
 
 loadData <- function(name, exclude=TRUE, addBins=FALSE, removeBlock=NULL, subset=FALSE, dataRoot='./data') {
   otherCols <- c()
-  if(name == 'exp1' | name == 'exp2' | name == 'exp3') {
+  if(name == 'exp1' | name == 'exp2' | name == 'exp3' | name == 'expMA') {
     load(file.path(dataRoot, paste0('data_', name, '.RData')))
     if(exclude) {
       # remove excluded subjects
@@ -46,6 +47,11 @@ loadData <- function(name, exclude=TRUE, addBins=FALSE, removeBlock=NULL, subset
     dat$choiceIsHighP <-  dat$choiceIsHighPpreRev
   }
   if(name == 'exp3') otherCols <- c(otherCols, 'cue')
+  if(name == 'expMA') {
+    otherCols <- c(otherCols, 'magnitude', 'ease')
+    dat$choice <- as.numeric(dat$choice_type)
+#    prepareForFitting <- prepareForFittingMA
+  }
   
   # remove RTs < .15 and null responses
   dat <- dat[dat$rt>.15 & !is.na(dat$rt),]
@@ -70,7 +76,11 @@ loadData <- function(name, exclude=TRUE, addBins=FALSE, removeBlock=NULL, subset
   # make DMC-style
   data <- dat
   data$s <- data$sub
-  data$R <- factor(ifelse(data$choiceIsHighP==0, 'r1', 'r2'))  # accuracy-coded: r1 = error, r2 = correct
+  if(name == 'expMA') {
+    data$R <- factor(as.numeric(data$choice_type), levels=1:3, labels=c('r1', 'r2', 'r3')) #ifelse(data$choiceIsHighP==0, 'r1', 'r2'))  # accuracy-coded: r1 = error, r2 = correct
+  } else {
+    data$R <- factor(ifelse(data$choiceIsHighP==0, 'r1', 'r2'))  # accuracy-coded: r1 = error, r2 = correct
+  }
   data$RT <- dat$rt
   data$S <- factor('s1')
   
@@ -115,6 +125,10 @@ getPriors <- function(p.vector) {
   # lower[names(p1)=='aV' | names(p1)=='aR'] <- NA  # corresponds to 0
   p1[grepl(pattern='aV', names(p1)) | grepl(pattern='aR', names(p1))] <- -1.6  # corresponds to 0.05
   lower[grepl(pattern='aV', names(p1)) | grepl(pattern='aR', names(p1))] <- NA  # corresponds to 0
+  p1[grepl(pattern='aVc', names(p1)) | grepl(pattern='aRc', names(p1))] <- -1.6  # corresponds to 0.05
+  lower[grepl(pattern='aVc', names(p1)) | grepl(pattern='aRc', names(p1))] <- NA  # corresponds to 0
+  p1[grepl(pattern='aVu', names(p1)) | grepl(pattern='aRu', names(p1))] <- -1.6  # corresponds to 0.05
+  lower[grepl(pattern='aVu', names(p1)) | grepl(pattern='aRu', names(p1))] <- NA  # corresponds to 0
   
   # urgency v0 - may vary across conditions, so use grepl
   p1[grepl(pattern='V0', names(p1))] <- 2
@@ -152,6 +166,11 @@ getPriors <- function(p.vector) {
   # non-linear effect vmax
   p1[names(p1) == 'vmax'] = 2
   p2[names(p2) == 'vmax'] = 5
+  p1[names(p1) == 'k'] = 1
+  p2[names(p2) == 'k'] = 3
+  
+  p1[names(p1) == 'k2'] = 0
+  p2[names(p2) == 'k2'] = 1
   
   # sv
   p1[names(p1) == 'sv'] = 0.1
@@ -330,7 +349,7 @@ getDescriptives <- function(x, dep.var='RT', attr.name='RTsOverBins', id.var1='~
 plotDataPPBins <- function(data, pp, dep.var='RT', xaxis='bin', colorM='blue', colorD=1, 
                            draw.legend=TRUE, legend.pos='topright', plot.new=TRUE, draw.polygon=TRUE,
                            xlim=NULL, ylim=NULL, xlab=NULL, ylab=NULL, data.cex=2, data.lwd=2,
-                           hline.by=0.1, axhlines=NULL, plot.model.points=TRUE,
+                           hline.by=0.1, axhlines=NULL, plot.model.points=FALSE,
                            vline.by=2, axvlines=NULL, xaxt='s', yaxt='s') {
   if(is.null(xlim))  xlim = range(data[,xaxis])+c(-.5, .5)
   if(is.null(ylim)) {
@@ -473,10 +492,11 @@ plotFits <- function(samples, dat, nCores=30) {
 }
 
 runDiagnostics <- function(fn, dat, samples=NULL, nCores=30, verbose=TRUE, chainsFileType='jpeg',
-                           plotChains=TRUE, plotPosteriorPriors=TRUE, calculateESS=TRUE, plotFits=TRUE, calculateParametersBPIC=TRUE) {
-  if(is.null(samples)) samples <- loadSamples(fn, samplesDir='samples')
+                           plotChains=TRUE, plotPosteriorPriors=TRUE, calculateESS=TRUE, plotFits=TRUE, calculateParametersBPIC=TRUE,
+                           samplesDir='samples', saveDir='diagnostics') {
+  if(is.null(samples)) samples <- loadSamples(fn, samplesDir=samplesDir)
   
-  saveDir <- file.path('diagnostics', fn)
+  saveDir <- file.path(saveDir, fn)
   dir.create(saveDir, showWarnings = FALSE)
   if(chainsFileType == 'jpeg') dir.create(file.path(saveDir, 'chains'), showWarnings = FALSE)
 
@@ -779,7 +799,11 @@ loadSamples <- function(fn, samplesDir=NULL) {
   if(!is.null(samplesDir)) fn <- file.path(samplesDir, fn)
   fnExt <- paste0(fn, '.RData')
   load(fnExt)
-  return(hsamples)
+  if('samples' %in% ls()) {
+    return(samples)
+  } else {
+    return(hsamples)
+  }
   # fnAutoConverge <- gsub('.RData', '_autoconverge.RData', fnExt)
   # hasLoaded <- FALSE
   # if(file.exists(fnAutoConverge)) {

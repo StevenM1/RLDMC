@@ -155,8 +155,8 @@ data.cex=1.5
 corrRTylim <- errRTylim <- c(.35,1.1)
 for(qRTs in allqRTs) {
   plot.new()
-  if(i == 0) mtext('RL-DDM', side=3, cex=.66*1.2, font=2, line=1)
-  if(i == 2) {plot.new(); mtext('RL-ARD', side=3, cex=.66*1.2, font=2, line=1)}
+  if(i == 0) { mtext('RL-DDM', side=3, cex=.66*1.2, font=2, line=2); mtext(paste0('BPIC = ', round(apply(allBPICs, 2, sum)[1])), cex=.66, line=1)}
+  if(i == 2) {plot.new(); mtext('RL-ARD', side=3, cex=.66*1.2, font=2, line=2); mtext(paste0('BPIC = ', round(apply(allBPICs, 2, sum)[4])), cex=.66, line=1)}
   for(cue in c('SPD', 'ACC')) {
     i <- i+1
     idxD <- qRTs$meanAccByCue[[1]]$cue==cue

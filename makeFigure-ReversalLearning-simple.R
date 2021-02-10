@@ -29,10 +29,10 @@ calculateByBin <- function(df) {
   df
 }
 
-getDataPpBPIC <- function(modelName, dataName, do.plot=FALSE, BPIConly=FALSE) {
+getDataPpBPIC <- function(modelName, dataName, do.plot=FALSE, BPIConly=FALSE, byTrial=TRUE) {
   model <- setupModel(modelName)  # calls load_model(), which loads transform.dmc() and transform2.dmc()
   dat <- loadData(dataName, removeBlock = NULL)[['dat']]
-  dat$bin <- dat$trialNreversal   ## important for the reversals!
+  if(byTrial) { dat$bin <- dat$trialNreversal } else { dat$bin <- dat$trialBin }   ## important for the reversals!
   fn <- paste0('model-', modelName, '_data-', dataName)
   
   # Load, generate posterior preds -------------------------------------------
@@ -103,7 +103,7 @@ data.cex=1.5
 for(qRTs in allqRTs[1]) {
   par(mar=c(0,0,0,0))
   plot.new()
-  if(i == 0) mtext('RL-DDM A3', side=3, cex=.66*1.2, font=2, line=1)
+  if(i == 0) {mtext('RL-DDM A3', side=3, cex=.66*1.2, font=2, line=1); mtext(paste0('BPIC = ', round(sum(BPICDDM[,2]))), line=0, cex=.66*1.2)}
   if(i == 1) {plot.new(); mtext('RL-ARD', side=3, cex=.66*1.2, font=2, line=1)}
   i <- i+1
   par(mar=c(0,2,1,.5)+.1)
@@ -147,4 +147,58 @@ for(qRTs in allqRTs[1]) {
   title('RTs')
 }
 if(savePlot) dev.off()
+
+
+
+
+
+# Soft-max plot (no RTs) -----------------------------------------------------------
+### softmax
+tmp <- getDataPpBPIC('softmax-RL4', 'exp2')
+BPIC <- tmp$BPIC
+qRTsByTrial <- getqRTs(tmp[['data3']], tmp[['pp3']])
+
+tmp2 <- getDataPpBPIC('softmax-RL4', 'exp2', byTrial = FALSE)
+qRTsByBin <- getqRTs(tmp2[['data3']], tmp2[['pp3']])
+
+allqRTs <- list(qRTsByBin, qRTsByTrial)
+
+
+pdf(file='./figures/exp2_softmax_fit-v3.pdf', width=4, height=2.5)
+par(oma=c(3,3,2,0), mar=c(0, 2, 1, 0.5) + 0.1, #mfcol=c(3,4), 
+    mgp=c(2.75,.75,0), las=1, bty='l', mfrow=c(1,2), cex=.66)
+i <- 0
+data.cex=1.5
+#for(qRTs in allqRTs) {
+#par(mar=c(0,0,0,0))
+#plot.new()
+#if(i == 1) {mtext('RL-ARD', side=3, cex=.66*1.2, font=2, line=1)}
+i <- i+1
+par(mar=c(0,2,1,.5)+.1)
+plotDataPPBins(data=qRTsByBin$meanAccOverTime[[1]], pp=qRTsByBin$meanAccOverTime[[2]],
+               xaxt='n', xlim=c(1, 10), plot.model.points=FALSE,
+               dep.var='acc', ylab=expression('Proportion choice A'),
+               xlab = '', data.lwd=1.5, data.cex=data.cex,
+               draw.legend=i==1,
+               legend.pos='bottomleft', ylim=c(0.25, 0.85), hline.by=0.05, axvlines=seq(1, 10, 1))
+title('Soft-max', outer=TRUE) # side=3, cex=.87*1.2, font=2, line=1, outer=TRUE)
+axis(1, at=seq(1, 10, 1), lwd=2)
+mtext('Proportion choice A', side=2, cex=.66*1.2, line=3, las=0, font=1)
+axis(2, at=seq(.1, .9, .1), lwd=1.5)
+mtext('Trial bin', side=1, cex=.66*1.2, line=2)
+title('Choices by bin')
+
+#par(mar=c(0,2,1,.5)+.1)
+plotDataPPBins(data=qRTsByTrial$meanAccOverTime[[1]], pp=qRTsByTrial$meanAccOverTime[[2]],
+               xaxt='n', xlim=c(-60, 40), plot.model.points=FALSE,
+               dep.var='acc', ylab=expression('Proportion choice A'),
+               xlab = '', data.lwd=1.5, data.cex=data.cex,
+               draw.legend=i==1,
+               legend.pos='bottomleft', ylim=c(0.25, 0.85), hline.by=0.05, axvlines=seq(-50, 50, 10))
+axis(1, at=seq(-50, 50, 10), lwd=2)
+abline(v=0, lty=2, lwd=2)
+axis(2, at=seq(.1, .9, .1), lwd=1.5)
+mtext('Trial (relative to reversal)', side=1, cex=.66*1.2, line=2)
+title('Choices by trial')
+dev.off()
 
