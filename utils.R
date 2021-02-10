@@ -189,10 +189,6 @@ getPriors <- function(p.vector) {
   p1[names(p1) == 'pw'] = 1
   p2[names(p2) == 'pw'] = 1
   
-  # Fontanesi's threshold-modulation by magnitude
-  p1[names(p1) == 'amod'] = 0
-  p2[names(p2) == 'amod'] = 1
-  
   # offset
   p1[names(p1)=='offset'] = 27.5
   p2[names(p1)=='offset'] = 5
